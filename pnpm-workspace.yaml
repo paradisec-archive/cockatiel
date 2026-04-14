@@ -1,2 +1,10 @@
-onlyBuiltDependencies:
-  - lefthook
+# Supply chain security
+# https://pnpm.io/supply-chain-security
+strictDepBuilds: true
+blockExoticSubdeps: true
+minimumReleaseAge: 4320
+trustPolicy: no-downgrade
+
+allowBuilds:
+  lefthook: true
+  msw: false
