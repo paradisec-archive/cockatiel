@@ -114,7 +114,9 @@ export const generateEaf = (data: ExportData): string => {
     annotationEl.appendChild(alignable);
     spkTierEl.appendChild(annotationEl);
   }
-  if (hasSpeakers) root.appendChild(spkTierEl);
+  if (hasSpeakers) {
+    root.appendChild(spkTierEl);
+  }
 
   // LINGUISTIC_TYPE
   const lt = doc.createElement('LINGUISTIC_TYPE');

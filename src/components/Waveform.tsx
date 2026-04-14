@@ -1,6 +1,7 @@
 import { useWavesurfer } from '@wavesurfer/react';
 import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { getSpeakerColour } from '@/lib/constants';
@@ -37,25 +38,39 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   const regions = useMemo(() => RegionsPlugin.create(), []);
   const zoom = useMemo(() => ZoomPlugin.create({ exponentialZooming: true, iterations: 30, scale: 0.5 }), []);
-  const plugins = useMemo(() => [regions, zoom], [regions, zoom]);
+  const minimap = useMemo(
+    () =>
+      MinimapPlugin.create({
+        height: 32,
+        overlayColor: 'oklch(0.45 0.05 55 / 30%)',
+        waveColor: 'oklch(0.65 0.04 55)',
+        progressColor: 'oklch(0.45 0.08 55)',
+      }),
+    [],
+  );
+  const plugins = useMemo(() => [regions, zoom, minimap], [regions, zoom, minimap]);
 
   const { wavesurfer, isReady } = useWavesurfer({
     container: containerRef,
-    cursorColor: 'oklch(0.72 0.155 60)',
+    cursorColor: 'oklch(0.45 0.18 25)',
     cursorWidth: 2,
     height: 160,
     normalize: true,
     plugins,
-    progressColor: 'oklch(0.65 0.12 65)',
-    waveColor: 'oklch(0.75 0.145 65)',
+    progressColor: 'oklch(0.35 0.12 55)',
+    waveColor: 'oklch(0.55 0.06 55)',
   });
 
   // Load audio via loadBlob — avoids blob URL lifecycle issues with StrictMode.
   // The hook's internal `ready` event listener sets isReady for us.
   const loadedFileRef = useRef<File | null>(null);
   useEffect(() => {
-    if (!wavesurfer || !audioFile) return;
-    if (loadedFileRef.current === audioFile) return;
+    if (!wavesurfer || !audioFile) {
+      return;
+    }
+    if (loadedFileRef.current === audioFile) {
+      return;
+    }
     loadedFileRef.current = audioFile;
 
     wavesurfer.loadBlob(audioFile).catch((err: unknown) => {
@@ -67,17 +82,19 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   // Rebuild regions when segments change
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
 
     regions.clearRegions();
     for (const seg of segments) {
       const colour = getSpeakerColour(seg.speaker);
       regions.addRegion({
-        color: `${colour}25`,
-        drag: false,
+        color: `${colour}30`,
+        drag: true,
         end: seg.end,
         id: seg.id,
-        resize: false,
+        resize: true,
         start: seg.start,
       });
     }
@@ -86,33 +103,61 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   // Update only the selected region's highlight — avoids rebuilding all regions on click
   const prevSelectedRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
     const prev = prevSelectedRef.current;
     prevSelectedRef.current = selectedSegmentId;
 
     for (const region of regions.getRegions()) {
       if (region.id === prev) {
         const colour = getSpeakerColour(segments.find((s) => s.id === prev)?.speaker ?? 0);
-        region.setOptions({ color: `${colour}25` });
+        region.setOptions({ color: `${colour}30` });
       }
       if (region.id === selectedSegmentId) {
         const colour = getSpeakerColour(segments.find((s) => s.id === selectedSegmentId)?.speaker ?? 0);
-        region.setOptions({ color: `${colour}40` });
+        region.setOptions({ color: `${colour}55` });
       }
     }
   }, [regions, segments, selectedSegmentId, isReady]);
 
-  // Region clicks → select segment + play.
+  // Region clicks → select segment + loop playback.
   // Use a flag to prevent the `interaction` event from immediately clearing the selection.
   const regionClickedRef = useRef(false);
+  const loopingRegionRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
 
     const unsubRegionClick = regions.on('region-clicked', (region, e) => {
       e.stopPropagation();
       regionClickedRef.current = true;
+      loopingRegionRef.current = region.id;
       useAppStore.getState().selectSegment(region.id);
       region.play();
+    });
+
+    // Double-click a region to split at that position
+    const unsubRegionDblClick = regions.on('region-double-clicked', (region, e) => {
+      e.stopPropagation();
+      const container = containerRef.current;
+      const duration = wavesurfer.getDuration();
+      const rect = container?.getBoundingClientRect();
+      if (!container || !rect || !duration) {
+        return;
+      }
+      const scrollLeft = wavesurfer.getScroll();
+      const pxPerSec = container.scrollWidth / duration;
+      const clickTime = (e.clientX - rect.left + scrollLeft) / pxPerSec;
+      useAppStore.getState().splitSegment(region.id, clickTime);
+    });
+
+    // Loop: when playback leaves the active region, restart it
+    const unsubRegionOut = regions.on('region-out', (region) => {
+      if (region.id === loopingRegionRef.current) {
+        region.play();
+      }
     });
 
     const unsubClick = wavesurfer.on('interaction', () => {
@@ -120,12 +165,27 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
         regionClickedRef.current = false;
         return;
       }
+      loopingRegionRef.current = null;
       useAppStore.getState().selectSegment(null);
+    });
+
+    // Sync drag/resize back to store
+    const unsubRegionUpdated = regions.on('region-updated', (region) => {
+      useAppStore.getState().updateSegmentBounds(region.id, region.start, region.end);
+    });
+
+    // Stop looping when user pauses
+    const unsubPause = wavesurfer.on('pause', () => {
+      loopingRegionRef.current = null;
     });
 
     return () => {
       unsubRegionClick();
+      unsubRegionDblClick();
+      unsubRegionOut();
+      unsubRegionUpdated();
       unsubClick();
+      unsubPause();
     };
   }, [wavesurfer, regions]);
 
@@ -136,24 +196,32 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   onViewportChangeRef.current = onViewportChange;
 
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
 
     const emitViewport = (visibleStartTime: number, visibleEndTime: number) => {
-      if (!containerRef.current) return;
+      if (!containerRef.current) {
+        return;
+      }
       const pps = containerRef.current.clientWidth / (visibleEndTime - visibleStartTime || 1);
       onViewportChangeRef.current?.({ pixelsPerSecond: pps, visibleEndTime, visibleStartTime });
     };
 
     const emitFullViewport = () => {
       const duration = wavesurfer.getDuration();
-      if (duration > 0) emitViewport(0, duration);
+      if (duration > 0) {
+        emitViewport(0, duration);
+      }
     };
 
     const unsubScroll = wavesurfer.on('scroll', emitViewport);
     const unsubReady = wavesurfer.on('ready', emitFullViewport);
 
     // If audio is already loaded (e.g. effect re-ran after StrictMode), emit now
-    if (wavesurfer.getDuration() > 0) emitFullViewport();
+    if (wavesurfer.getDuration() > 0) {
+      emitFullViewport();
+    }
 
     return () => {
       unsubScroll();
@@ -167,7 +235,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     <WavesurferContext.Provider value={ctxValue}>
       <div className="space-y-0.5">
         <div className="flex items-stretch">
-          <div className="flex w-[100px] shrink-0 items-center rounded-l-md border border-r-0 border-border bg-[var(--waveform-bg)] px-2.5 font-mono text-[0.65rem] uppercase tracking-widest text-white/30">
+          <div className="flex w-[100px] shrink-0 items-center rounded-l-md border border-r-0 border-border bg-[var(--waveform-bg)] px-2.5 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground/50">
             Waveform
           </div>
           <div ref={containerRef} className="flex-1 overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />

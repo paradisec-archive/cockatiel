@@ -22,7 +22,9 @@ declare global {
  */
 const parseDownloadProgress = (status: string | undefined): { fraction: number; mb: string; totalMb: string } | null => {
   const match = status?.match(/Downloading data\.\.\. \((\d+)\/(\d+)\)/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
   const downloaded = Number(match[1]);
   const total = Number(match[2]);
   return {

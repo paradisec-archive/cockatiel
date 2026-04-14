@@ -9,7 +9,9 @@ interface DropZoneProps {
 export const DropZone = ({ onFileSelected }: DropZoneProps) => {
   const onDrop = useCallback(
     (accepted: File[]) => {
-      if (accepted[0]) onFileSelected(accepted[0]);
+      if (accepted[0]) {
+        onFileSelected(accepted[0]);
+      }
     },
     [onFileSelected],
   );

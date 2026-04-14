@@ -5,6 +5,7 @@ import { DropZone } from '@/components/DropZone';
 import { ExportMenu } from '@/components/ExportMenu';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
+import { KeyboardHelp } from '@/components/KeyboardHelp';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { VadSettings } from '@/components/VadSettings';
@@ -32,7 +33,9 @@ const App = () => {
 
   const handleResegment = useCallback(() => {
     const file = audioFileRef.current;
-    if (file) processFile(file);
+    if (file) {
+      processFile(file);
+    }
   }, [audioFileRef, processFile]);
 
   return (
@@ -64,6 +67,7 @@ const App = () => {
       </main>
 
       <Footer />
+      <KeyboardHelp />
     </div>
   );
 };

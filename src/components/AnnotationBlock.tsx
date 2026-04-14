@@ -37,12 +37,16 @@ export const AnnotationBlock = memo(function AnnotationBlock({ annotation, isSel
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') handleClick();
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleClick();
+      }
     },
     [handleClick],
   );
 
-  if (width < 2) return null;
+  if (width < 2) {
+    return null;
+  }
 
   const bgColour = `${colour}18`;
   const borderColour = isSelected ? colour : 'oklch(0 0 0 / 12%)';

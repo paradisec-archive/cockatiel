@@ -1,3 +1,4 @@
+import { PauseIcon, PlayIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TimeDisplay } from './TimeDisplay';
@@ -8,7 +9,9 @@ export const Controls = () => {
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
     const unsubPlay = wavesurfer.on('play', () => setIsPlaying(true));
     const unsubPause = wavesurfer.on('pause', () => setIsPlaying(false));
     return () => {
@@ -21,17 +24,11 @@ export const Controls = () => {
     wavesurfer?.playPause();
   }, [wavesurfer]);
 
-  const handleStop = useCallback(() => {
-    wavesurfer?.stop();
-  }, [wavesurfer]);
-
   return (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="sm" className="h-8 w-8 p-0 font-mono" disabled={!isReady} onClick={handleStop}>
-        ⏹
-      </Button>
-      <Button size="sm" className="h-8 px-3 font-mono" disabled={!isReady} onClick={handlePlayPause}>
-        {isPlaying ? '⏸ Pause' : '▶ Play'}
+      <Button size="sm" className="h-8 gap-1.5 px-3" disabled={!isReady} onClick={handlePlayPause}>
+        {isPlaying ? <PauseIcon className="size-3.5" /> : <PlayIcon className="size-3.5" />}
+        {isPlaying ? 'Pause' : 'Play'}
       </Button>
       <TimeDisplay />
     </div>

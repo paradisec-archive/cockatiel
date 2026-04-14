@@ -9,7 +9,9 @@ export const TimeDisplay = () => {
 
   // Update duration once on ready
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
     const unsub = wavesurfer.on('ready', () => {
       durationRef.current = formatTime(wavesurfer.getDuration());
       if (spanRef.current) {
@@ -21,7 +23,9 @@ export const TimeDisplay = () => {
 
   // Update current time via ref (no re-renders at 60fps)
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
     const unsub = wavesurfer.on('timeupdate', (currentTime: number) => {
       if (spanRef.current) {
         spanRef.current.textContent = `${formatTime(currentTime)} / ${durationRef.current}`;

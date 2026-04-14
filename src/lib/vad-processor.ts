@@ -113,7 +113,9 @@ export const runEnergyVad = async (samples: Float32Array, config: VadConfig, onP
       sum += s * s;
     }
     energies[i] = Math.sqrt(sum / frameSize);
-    if (energies[i] > maxEnergy) maxEnergy = energies[i];
+    if (energies[i] > maxEnergy) {
+      maxEnergy = energies[i];
+    }
 
     if (i % 1000 === 0) {
       onProgress?.((i / numFrames) * 0.5);

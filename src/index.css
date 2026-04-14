@@ -82,7 +82,7 @@
   --chart-4: oklch(0.6 0.18 290);
   --chart-5: oklch(0.62 0.14 200);
   --radius: 0.5rem;
-  --waveform-bg: oklch(0.22 0.015 55);
+  --waveform-bg: oklch(0.96 0.005 75);
   --waveform-wave: oklch(0.75 0.145 65);
   --waveform-cursor: oklch(0.72 0.155 60);
   --sidebar: oklch(0.965 0.006 75);

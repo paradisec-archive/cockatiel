@@ -27,9 +27,13 @@ interface AppState {
   assignAllToSpeaker: (speakerIndex: number) => void;
   assignSpeaker: (segmentId: string, speakerIndex: number) => void;
   clearSegments: () => void;
+  deleteSegment: (id: string) => void;
   loadSegments: (segments: VadSegment[]) => void;
+  mergeWithNext: (id: string) => void;
   reset: () => void;
   selectSegment: (id: string | null) => void;
+  selectAdjacentSegment: (direction: 'prev' | 'next') => void;
+  splitSegment: (id: string, atTime: number) => void;
   setAppPhase: (phase: AppPhase) => void;
   setDefaultSpeaker: (index: number) => void;
   setMediaFile: (name: string, duration: number) => void;
@@ -38,8 +42,11 @@ interface AppState {
   setSpeakerName: (index: number, name: string) => void;
   setStatus: (message: string) => void;
   setVadConfig: (config: Partial<VadConfig>) => void;
+  updateSegmentBounds: (id: string, start: number, end: number) => void;
   updateSegmentText: (id: string, value: string) => void;
 }
+
+const sortByStart = (segs: Annotation[]) => [...segs].sort((a, b) => a.start - b.start);
 
 const initialState = {
   appPhase: 'upload' as AppPhase,
@@ -74,12 +81,76 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ appPhase: 'ready', processingProgress: 0, segments, statusMessage: '' });
   },
 
+  updateSegmentBounds: (id, start, end) =>
+    set((state) => ({
+      segments: state.segments.map((s) => (s.id === id ? { ...s, start, end } : s)),
+    })),
+
   updateSegmentText: (id, value) =>
     set((state) => ({
       segments: state.segments.map((s) => (s.id === id ? { ...s, value } : s)),
     })),
 
   selectSegment: (id) => set({ selectedSegmentId: id }),
+
+  selectAdjacentSegment: (direction) =>
+    set((state) => {
+      const sorted = sortByStart(state.segments);
+      if (!sorted.length) {
+        return state;
+      }
+      const idx = sorted.findIndex((s) => s.id === state.selectedSegmentId);
+      if (idx === -1) {
+        return { selectedSegmentId: sorted[0].id };
+      }
+      const next = direction === 'next' ? Math.min(idx + 1, sorted.length - 1) : Math.max(idx - 1, 0);
+      return { selectedSegmentId: sorted[next].id };
+    }),
+
+  splitSegment: (id, atTime) =>
+    set((state) => {
+      const seg = state.segments.find((s) => s.id === id);
+      if (!seg || atTime <= seg.start || atTime >= seg.end) {
+        return state;
+      }
+      const left: Annotation = { ...seg, end: atTime };
+      const right: Annotation = { ...seg, id: crypto.randomUUID(), start: atTime, value: '' };
+      return {
+        segments: state.segments.flatMap((s) => (s.id === id ? [left, right] : [s])),
+        selectedSegmentId: right.id,
+      };
+    }),
+
+  deleteSegment: (id) =>
+    set((state) => ({
+      segments: state.segments.filter((s) => s.id !== id),
+      selectedSegmentId: state.selectedSegmentId === id ? null : state.selectedSegmentId,
+    })),
+
+  mergeWithNext: (id) =>
+    set((state) => {
+      const sorted = sortByStart(state.segments);
+      const idx = sorted.findIndex((s) => s.id === id);
+      if (idx === -1 || idx >= sorted.length - 1) {
+        return state;
+      }
+      const current = sorted[idx];
+      const next = sorted[idx + 1];
+      const merged: Annotation = { ...current, end: next.end };
+      return {
+        segments: state.segments.flatMap((s) => {
+          if (s.id === id) {
+            return [merged];
+          }
+          if (s.id === next.id) {
+            return [];
+          }
+          return [s];
+        }),
+        selectedSegmentId: id,
+      };
+    }),
+
   clearSegments: () => set({ segments: [], selectedSegmentId: null }),
 
   assignSpeaker: (segmentId, speakerIndex) =>
@@ -111,7 +182,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setSpeakerName: (index, name) =>
     set((state) => {
-      if (index < 0 || index >= state.speakerNames.length) return state;
+      if (index < 0 || index >= state.speakerNames.length) {
+        return state;
+      }
       const names = [...state.speakerNames];
       names[index] = name;
       return { speakerNames: names };
@@ -119,7 +192,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setDefaultSpeaker: (index) =>
     set((state) => {
-      if (index < 0 || index >= state.speakerNames.length) return state;
+      if (index < 0 || index >= state.speakerNames.length) {
+        return state;
+      }
       return { defaultSpeaker: index };
     }),
 

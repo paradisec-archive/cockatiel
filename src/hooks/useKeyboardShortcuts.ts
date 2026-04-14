@@ -1,21 +1,97 @@
 import { useEffect } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
+import { useAppStore } from '@/lib/store';
+import { isFormElement } from '@/lib/utils';
 
-/**
- * Global keyboard shortcuts for the transcription workspace.
- * Space = play/pause (when not in a text input)
- */
+interface Shortcut {
+  description: string;
+  key: string;
+}
+
+export const SHORTCUTS: Shortcut[] = [
+  { key: 'Space', description: 'Play / pause' },
+  { key: 'Escape', description: 'Deselect segment' },
+  { key: 'S', description: 'Split segment at cursor' },
+  { key: 'Delete', description: 'Delete selected segment' },
+  { key: 'M', description: 'Merge segment with next' },
+  { key: '[', description: 'Select previous segment' },
+  { key: ']', description: 'Select next segment' },
+  { key: '←', description: 'Skip back 5 seconds' },
+  { key: '→', description: 'Skip forward 5 seconds' },
+  { key: '?', description: 'Show keyboard shortcuts' },
+];
+
 export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
   useEffect(() => {
-    if (!wavesurfer) return;
+    if (!wavesurfer) {
+      return;
+    }
 
     const handler = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
-
-      if (e.code === 'Space' && !isInput) {
+      // Escape: blur input if focused, otherwise deselect
+      if (e.code === 'Escape') {
         e.preventDefault();
-        wavesurfer.playPause();
+        if (isFormElement(e.target)) {
+          (document.activeElement as HTMLElement)?.blur();
+        } else {
+          useAppStore.getState().selectSegment(null);
+        }
+        return;
+      }
+
+      if (isFormElement(e.target)) {
+        return;
+      }
+
+      const store = useAppStore.getState();
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          wavesurfer.playPause();
+          break;
+
+        case 'KeyS':
+          if (store.selectedSegmentId) {
+            e.preventDefault();
+            store.splitSegment(store.selectedSegmentId, wavesurfer.getCurrentTime());
+          }
+          break;
+
+        case 'Delete':
+        case 'Backspace':
+          if (store.selectedSegmentId) {
+            e.preventDefault();
+            store.deleteSegment(store.selectedSegmentId);
+          }
+          break;
+
+        case 'KeyM':
+          if (store.selectedSegmentId) {
+            e.preventDefault();
+            store.mergeWithNext(store.selectedSegmentId);
+          }
+          break;
+
+        case 'BracketLeft':
+          e.preventDefault();
+          store.selectAdjacentSegment('prev');
+          break;
+
+        case 'BracketRight':
+          e.preventDefault();
+          store.selectAdjacentSegment('next');
+          break;
+
+        case 'ArrowLeft':
+          e.preventDefault();
+          wavesurfer.skip(-5);
+          break;
+
+        case 'ArrowRight':
+          e.preventDefault();
+          wavesurfer.skip(5);
+          break;
       }
     };
 
