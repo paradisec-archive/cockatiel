@@ -27,6 +27,14 @@ export const DropZone = ({ onFileSelected }: DropZoneProps) => {
 
   return (
     <div className="flex flex-col items-center justify-center py-16">
+      <div className="mb-8 max-w-lg text-center">
+        <h1 className="mb-2 text-2xl font-semibold tracking-tight">Audio Annotation Tool</h1>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Automatically segment audio using voice activity detection, then edit, assign speakers, transcribe, and export to EAF, SRT, TextGrid, CSV, or plain
+          text. All processing runs locally in your browser.
+        </p>
+      </div>
+
       <div
         {...getRootProps()}
         className={`w-full max-w-md rounded-xl border-2 border-dashed p-12 text-center transition-all ${

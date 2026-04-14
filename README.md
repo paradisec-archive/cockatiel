@@ -1,73 +1,50 @@
-# React + TypeScript + Vite
+# Cockatiel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Local-first audio annotation tool with WebAssembly VAD segmentation and multi-format export (EAF, SRT, TextGrid, CSV).
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Automatic segmentation** — voice activity detection via Silero VAD (WebAssembly) or energy-based fallback
+- **Waveform editor** — drag, resize, split, merge, and delete segments directly on the waveform
+- **Speaker assignment** — assign segments to speakers with configurable names and colours
+- **Looping playback** — click a region to loop it while transcribing
+- **Keyboard-driven workflow** — split (S), delete (Delete), merge (M), navigate ([/]), skip (←/→), and more. Press `?` to see all shortcuts
+- **Multi-format export** — EAF (ELAN), SRT, TextGrid (Praat), CSV, and plain text
+- **Privacy first** — all processing runs locally in the browser; no audio leaves your device
 
-## React Compiler
+## Getting started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm run download:wasm   # fetch Silero VAD WASM binary
+pnpm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) and drop an audio file to begin.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Command | Description |
+|---------|-------------|
+| `pnpm dev` | Start dev server |
+| `pnpm build` | Type-check and build for production |
+| `pnpm preview` | Preview production build |
+| `pnpm lint:biome` | Lint and format with Biome |
+| `pnpm lint:knip` | Find unused code with Knip |
+| `pnpm lint:types` | Type-check with TypeScript |
+| `pnpm test` | Run tests with Vitest |
+
+## Tech stack
+
+- [React](https://react.dev) + [TypeScript](https://www.typescriptlang.org)
+- [Vite](https://vite.dev) — build tool
+- [wavesurfer.js](https://wavesurfer.xyz) — waveform rendering and audio playback
+- [Zustand](https://zustand.docs.pmnd.rs) — state management
+- [Tailwind CSS](https://tailwindcss.com) — styling
+- [Silero VAD](https://github.com/snakers4/silero-vad) — voice activity detection (WASM)
+- [Biome](https://biomejs.dev) — linting and formatting
+- [Lefthook](https://github.com/evilmartians/lefthook) — git hooks
+
+## Licence
+
+MIT
