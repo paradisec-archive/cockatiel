@@ -46,13 +46,12 @@ const App = () => {
 
         {appPhase === 'ready' && (
           <div className="space-y-3">
-            <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
-              <Controls />
-              <ExportMenu />
-            </div>
-
             <Waveform audioFile={audioFileRef.current} onViewportChange={setViewport}>
               <WorkspaceKeyboardShortcuts />
+              <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
+                <Controls />
+                <ExportMenu />
+              </div>
               <AnnotationTier label="Transcript" viewport={viewport} />
             </Waveform>
 

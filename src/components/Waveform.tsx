@@ -1,7 +1,8 @@
 import { useWavesurfer } from '@wavesurfer/react';
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { getSpeakerColour } from '@/lib/constants';
 import { useAppStore } from '@/lib/store';
 
@@ -30,55 +31,49 @@ interface WaveformProps {
 
 export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isReady, setIsReady] = useState(false);
 
   const segments = useAppStore((s) => s.segments);
   const selectedSegmentId = useAppStore((s) => s.selectedSegmentId);
 
   const regions = useMemo(() => RegionsPlugin.create(), []);
+  const zoom = useMemo(() => ZoomPlugin.create({ exponentialZooming: true, iterations: 30, scale: 0.5 }), []);
+  const plugins = useMemo(() => [regions, zoom], [regions, zoom]);
 
-  const { wavesurfer } = useWavesurfer({
+  const { wavesurfer, isReady } = useWavesurfer({
     container: containerRef,
     cursorColor: 'oklch(0.72 0.155 60)',
     cursorWidth: 2,
     height: 160,
     normalize: true,
-    plugins: [regions],
+    plugins,
     progressColor: 'oklch(0.65 0.12 65)',
     waveColor: 'oklch(0.75 0.145 65)',
   });
 
-  // Load audio when file changes — with cleanup for unmount during load
+  // Load audio via loadBlob — avoids blob URL lifecycle issues with StrictMode.
+  // The hook's internal `ready` event listener sets isReady for us.
+  const loadedFileRef = useRef<File | null>(null);
   useEffect(() => {
     if (!wavesurfer || !audioFile) return;
-    let cancelled = false;
-    wavesurfer
-      .loadBlob(audioFile)
-      .then(() => {
-        if (!cancelled) setIsReady(true);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          console.error('Failed to load audio:', err);
-          useAppStore.getState().setStatus(`Error loading audio: ${err instanceof Error ? err.message : 'Unknown error'}`);
-          useAppStore.getState().setAppPhase('upload');
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (loadedFileRef.current === audioFile) return;
+    loadedFileRef.current = audioFile;
+
+    wavesurfer.loadBlob(audioFile).catch((err: unknown) => {
+      console.error('Failed to load audio:', err);
+      useAppStore.getState().setStatus(`Error loading audio: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      useAppStore.getState().setAppPhase('upload');
+    });
   }, [wavesurfer, audioFile]);
 
-  // Sync regions with store segments + highlight selected (merged into single effect)
+  // Rebuild regions when segments change
   useEffect(() => {
     if (!isReady) return;
 
     regions.clearRegions();
     for (const seg of segments) {
       const colour = getSpeakerColour(seg.speaker);
-      const isSelected = seg.id === selectedSegmentId;
       regions.addRegion({
-        color: isSelected ? `${colour}40` : `${colour}25`,
+        color: `${colour}25`,
         drag: false,
         end: seg.end,
         id: seg.id,
@@ -86,19 +81,45 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
         start: seg.start,
       });
     }
+  }, [regions, segments, isReady]);
+
+  // Update only the selected region's highlight — avoids rebuilding all regions on click
+  const prevSelectedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isReady) return;
+    const prev = prevSelectedRef.current;
+    prevSelectedRef.current = selectedSegmentId;
+
+    for (const region of regions.getRegions()) {
+      if (region.id === prev) {
+        const colour = getSpeakerColour(segments.find((s) => s.id === prev)?.speaker ?? 0);
+        region.setOptions({ color: `${colour}25` });
+      }
+      if (region.id === selectedSegmentId) {
+        const colour = getSpeakerColour(segments.find((s) => s.id === selectedSegmentId)?.speaker ?? 0);
+        region.setOptions({ color: `${colour}40` });
+      }
+    }
   }, [regions, segments, selectedSegmentId, isReady]);
 
-  // Region clicks → select segment + play
+  // Region clicks → select segment + play.
+  // Use a flag to prevent the `interaction` event from immediately clearing the selection.
+  const regionClickedRef = useRef(false);
   useEffect(() => {
     if (!wavesurfer) return;
 
     const unsubRegionClick = regions.on('region-clicked', (region, e) => {
       e.stopPropagation();
+      regionClickedRef.current = true;
       useAppStore.getState().selectSegment(region.id);
       region.play();
     });
 
     const unsubClick = wavesurfer.on('interaction', () => {
+      if (regionClickedRef.current) {
+        regionClickedRef.current = false;
+        return;
+      }
       useAppStore.getState().selectSegment(null);
     });
 
@@ -108,31 +129,37 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     };
   }, [wavesurfer, regions]);
 
-  // Viewport changes for annotation tier sync
+  // Viewport sync — keep annotation tier aligned with waveform.
+  // The `scroll` event fires on both scroll and zoom with (visibleStartTime, visibleEndTime).
+  // We also emit on `ready` for the initial alignment.
+  const onViewportChangeRef = useRef(onViewportChange);
+  onViewportChangeRef.current = onViewportChange;
+
   useEffect(() => {
     if (!wavesurfer) return;
 
-    const unsubScroll = wavesurfer.on('scroll', (visibleStartTime: number, visibleEndTime: number) => {
-      const containerWidth = containerRef.current?.clientWidth ?? 800;
-      const pps = containerWidth / (visibleEndTime - visibleStartTime || 1);
-      onViewportChange?.({ pixelsPerSecond: pps, visibleEndTime, visibleStartTime });
-    });
+    const emitViewport = (visibleStartTime: number, visibleEndTime: number) => {
+      if (!containerRef.current) return;
+      const pps = containerRef.current.clientWidth / (visibleEndTime - visibleStartTime || 1);
+      onViewportChangeRef.current?.({ pixelsPerSecond: pps, visibleEndTime, visibleStartTime });
+    };
 
-    const unsubZoom = wavesurfer.on('zoom', (minPxPerSec: number) => {
+    const emitFullViewport = () => {
       const duration = wavesurfer.getDuration();
-      const containerWidth = containerRef.current?.clientWidth ?? 800;
-      const visibleDuration = containerWidth / minPxPerSec;
-      const currentTime = wavesurfer.getCurrentTime();
-      const visibleStartTime = Math.max(0, currentTime - visibleDuration / 2);
-      const visibleEndTime = Math.min(duration, visibleStartTime + visibleDuration);
-      onViewportChange?.({ pixelsPerSecond: minPxPerSec, visibleEndTime, visibleStartTime });
-    });
+      if (duration > 0) emitViewport(0, duration);
+    };
+
+    const unsubScroll = wavesurfer.on('scroll', emitViewport);
+    const unsubReady = wavesurfer.on('ready', emitFullViewport);
+
+    // If audio is already loaded (e.g. effect re-ran after StrictMode), emit now
+    if (wavesurfer.getDuration() > 0) emitFullViewport();
 
     return () => {
       unsubScroll();
-      unsubZoom();
+      unsubReady();
     };
-  }, [wavesurfer, onViewportChange]);
+  }, [wavesurfer]);
 
   const ctxValue = useMemo(() => ({ isReady, wavesurfer }), [wavesurfer, isReady]);
 
