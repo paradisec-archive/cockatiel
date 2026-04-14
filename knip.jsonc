@@ -1,0 +1,11 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "tags": ["-lintignore"],
+  "ignore": [
+    // shadcn/ui component library
+    "src/components/ui/**"
+  ],
+  "commitlint": {
+    "entry": ["commitlint.config.ts"]
+  }
+}

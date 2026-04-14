@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# WASM binaries (downloaded via scripts/download-wasm-vad.sh)
+public/wasm/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

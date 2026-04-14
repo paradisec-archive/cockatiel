@@ -1,9 +1,72 @@
-function App() {
-  return (
-    <div className="min-h-screen flex flex-col">
-      <h1 className="text-2xl font-bold p-4">Cockatiel</h1>
-    </div>
-  )
-}
+import { useCallback, useState } from 'react';
+import { AnnotationTier } from '@/components/AnnotationTier';
+import { Controls } from '@/components/Controls';
+import { DropZone } from '@/components/DropZone';
+import { ExportMenu } from '@/components/ExportMenu';
+import { Footer } from '@/components/Footer';
+import { Header } from '@/components/Header';
+import { SpeakerPanel } from '@/components/SpeakerPanel';
+import { StatusBar } from '@/components/StatusBar';
+import { VadSettings } from '@/components/VadSettings';
+import { type TimelineViewport, useWavesurferContext, Waveform } from '@/components/Waveform';
+import { useAutoSegment } from '@/hooks/useAutoSegment';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useAppStore } from '@/lib/store';
 
-export default App
+const defaultViewport: TimelineViewport = {
+  pixelsPerSecond: 100,
+  visibleEndTime: 60,
+  visibleStartTime: 0,
+};
+
+const WorkspaceKeyboardShortcuts = () => {
+  const { wavesurfer } = useWavesurferContext();
+  useKeyboardShortcuts(wavesurfer);
+  return null;
+};
+
+const App = () => {
+  const appPhase = useAppStore((s) => s.appPhase);
+  const { audioFileRef, processFile } = useAutoSegment();
+  const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
+
+  const handleResegment = useCallback(() => {
+    const file = audioFileRef.current;
+    if (file) processFile(file);
+  }, [audioFileRef, processFile]);
+
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <Header />
+
+      <main className="mx-auto max-w-6xl px-4 py-6">
+        {appPhase === 'upload' && <DropZone onFileSelected={processFile} />}
+
+        {appPhase === 'processing' && <StatusBar />}
+
+        {appPhase === 'ready' && (
+          <div className="space-y-3">
+            <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
+              <Controls />
+              <ExportMenu />
+            </div>
+
+            <Waveform audioFile={audioFileRef.current} onViewportChange={setViewport}>
+              <WorkspaceKeyboardShortcuts />
+              <AnnotationTier label="Transcript" viewport={viewport} />
+            </Waveform>
+
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <SpeakerPanel />
+              <VadSettings onResegment={handleResegment} />
+            </div>
+          </div>
+        )}
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default App;
