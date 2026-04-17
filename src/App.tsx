@@ -5,11 +5,13 @@ import { DropZone } from '@/components/DropZone';
 import { ExportMenu } from '@/components/ExportMenu';
 import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
+import { HelpButton } from '@/components/HelpButton';
 import { KeyboardHelp } from '@/components/KeyboardHelp';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { VadSettings } from '@/components/VadSettings';
 import { type TimelineViewport, useWavesurferContext, Waveform } from '@/components/Waveform';
+import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useAppStore } from '@/lib/store';
@@ -30,6 +32,7 @@ const App = () => {
   const appPhase = useAppStore((s) => s.appPhase);
   const { audioFileRef, processFile } = useAutoSegment();
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const handleResegment = useCallback(() => {
     const file = audioFileRef.current;
@@ -53,7 +56,11 @@ const App = () => {
               <WorkspaceKeyboardShortcuts />
               <div className="sticky top-12 z-30 -mx-4 flex items-center justify-between border-b border-border bg-card/90 px-4 py-2 backdrop-blur">
                 <Controls />
-                <ExportMenu />
+                <div className="flex items-center gap-3">
+                  <ZoomControl />
+                  <ExportMenu />
+                  <HelpButton onOpen={() => setHelpOpen(true)} />
+                </div>
               </div>
               <AnnotationTier label="Transcript" viewport={viewport} />
             </Waveform>
@@ -67,7 +74,7 @@ const App = () => {
       </main>
 
       <Footer />
-      <KeyboardHelp />
+      <KeyboardHelp open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 };

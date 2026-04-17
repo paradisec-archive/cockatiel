@@ -8,11 +8,12 @@ import { getSpeakerColour } from '@/lib/constants';
 import { useAppStore } from '@/lib/store';
 
 interface WavesurferContextValue {
+  containerRef: React.RefObject<HTMLDivElement | null> | null;
   isReady: boolean;
   wavesurfer: WaveSurfer | null;
 }
 
-const WavesurferContext = createContext<WavesurferContextValue>({ isReady: false, wavesurfer: null });
+const WavesurferContext = createContext<WavesurferContextValue>({ containerRef: null, isReady: false, wavesurfer: null });
 
 export const useWavesurferContext = () => {
   return useContext(WavesurferContext);
@@ -229,7 +230,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     };
   }, [wavesurfer]);
 
-  const ctxValue = useMemo(() => ({ isReady, wavesurfer }), [wavesurfer, isReady]);
+  const ctxValue = useMemo(() => ({ containerRef, isReady, wavesurfer }), [wavesurfer, isReady]);
 
   return (
     <WavesurferContext.Provider value={ctxValue}>

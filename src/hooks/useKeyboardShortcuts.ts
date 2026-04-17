@@ -28,8 +28,13 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
     }
 
     const handler = (e: KeyboardEvent) => {
-      // Escape: blur input if focused, otherwise deselect
+      // Escape: blur input if focused, otherwise deselect.
+      // Skip entirely when a dialog is open so the browser's native
+      // close-modal-on-Escape handler can fire.
       if (e.code === 'Escape') {
+        if (document.querySelector('dialog[open]')) {
+          return;
+        }
         e.preventDefault();
         if (isFormElement(e.target)) {
           (document.activeElement as HTMLElement)?.blur();
