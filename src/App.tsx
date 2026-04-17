@@ -24,8 +24,8 @@ const defaultViewport: TimelineViewport = {
 };
 
 const WorkspaceKeyboardShortcuts = () => {
-  const { wavesurfer } = useWavesurferContext();
-  useKeyboardShortcuts(wavesurfer);
+  const { wavesurfer, containerRef } = useWavesurferContext();
+  useKeyboardShortcuts(wavesurfer, containerRef);
   return null;
 };
 

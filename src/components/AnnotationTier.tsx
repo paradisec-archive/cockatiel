@@ -36,7 +36,7 @@ export const AnnotationTier = ({ label, viewport }: AnnotationTierProps) => {
         {label}
       </div>
 
-      <SegmentContextMenu getClickContext={getClickContext} className="flex-1">
+      <SegmentContextMenu getClickContext={getClickContext} className="min-w-0 flex-1">
         <div ref={trackRef} className="relative h-full overflow-hidden rounded-r-md border border-border bg-card">
           {segments.map((seg) => {
             const left = (seg.start - visibleStartTime) * pixelsPerSecond;

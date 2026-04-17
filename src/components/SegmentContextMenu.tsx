@@ -11,6 +11,8 @@ import {
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
 import { type Annotation, canSplitAt, sortByStart, useAppStore } from '@/lib/store';
+import { zoomToSegment } from '@/lib/zoom';
+import { useWavesurferContext } from './Waveform';
 
 const NEW_SEGMENT_DURATION = 1.0;
 
@@ -85,6 +87,7 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
   const speakerNames = useAppStore((s) => s.speakerNames);
   const mediaDuration = useAppStore((s) => s.mediaDuration);
   const defaultSpeaker = useAppStore((s) => s.defaultSpeaker);
+  const { wavesurfer, containerRef } = useWavesurferContext();
 
   const sorted = sortByStart(segments);
 
@@ -95,6 +98,7 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
     const hasPrev = idx > 0;
     const hasNext = idx !== -1 && idx < sorted.length - 1;
     const canSplit = !!seg && canSplitAt(seg, ctx.time);
+    const canZoom = !!seg && !!wavesurfer;
 
     return (
       <>
@@ -105,6 +109,18 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
         >
           Split here
           <ContextMenuShortcut>S</ContextMenuShortcut>
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled={!canZoom}
+          onClick={() => {
+            if (!seg || !wavesurfer) {
+              return;
+            }
+            zoomToSegment(wavesurfer, containerRef?.current?.clientWidth ?? 0, seg.start, seg.end);
+          }}
+        >
+          Zoom here
+          <ContextMenuShortcut>Z</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuSub>
           <ContextMenuSubTrigger disabled={speakerNames.length <= 1}>Assign speaker</ContextMenuSubTrigger>

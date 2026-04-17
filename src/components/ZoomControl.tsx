@@ -2,9 +2,9 @@ import { MinusIcon, PlusIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { MAX_PX_PER_SEC } from '@/lib/zoom';
 import { useWavesurferContext } from './Waveform';
 
-const MAX_PX_PER_SEC = 500;
 // One click of +/- applies this factor — roughly one wheel tick.
 const STEP_FACTOR = 1.25;
 

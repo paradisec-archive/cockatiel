@@ -250,7 +250,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
           <div className="flex w-[100px] shrink-0 items-center rounded-l-md border border-r-0 border-border bg-[var(--waveform-bg)] px-2.5 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground/50">
             Waveform
           </div>
-          <SegmentContextMenu getClickContext={getClickContext} className="flex-1">
+          <SegmentContextMenu getClickContext={getClickContext} className="min-w-0 flex-1">
             <div ref={containerRef} className="overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />
           </SegmentContextMenu>
         </div>

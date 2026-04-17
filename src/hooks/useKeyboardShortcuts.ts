@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import { useAppStore } from '@/lib/store';
 import { isFormElement } from '@/lib/utils';
+import { zoomToSegment } from '@/lib/zoom';
 
 interface Shortcut {
   description: string;
@@ -12,6 +13,7 @@ export const SHORTCUTS: Shortcut[] = [
   { key: 'Space', description: 'Play / pause' },
   { key: 'Escape', description: 'Deselect segment' },
   { key: 'S', description: 'Split segment at cursor' },
+  { key: 'Z', description: 'Zoom to selected segment' },
   { key: 'Delete', description: 'Delete selected segment' },
   { key: 'M', description: 'Merge segment with next' },
   { key: 'Shift+M', description: 'Merge segment with previous' },
@@ -22,7 +24,7 @@ export const SHORTCUTS: Shortcut[] = [
   { key: '?', description: 'Show keyboard shortcuts' },
 ];
 
-export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
+export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef: React.RefObject<HTMLDivElement | null> | null) => {
   useEffect(() => {
     if (!wavesurfer) {
       return;
@@ -61,6 +63,16 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
           if (store.selectedSegmentId) {
             e.preventDefault();
             store.splitSegment(store.selectedSegmentId, wavesurfer.getCurrentTime());
+          }
+          break;
+
+        case 'KeyZ':
+          if (store.selectedSegmentId) {
+            const seg = store.segments.find((s) => s.id === store.selectedSegmentId);
+            if (seg) {
+              e.preventDefault();
+              zoomToSegment(wavesurfer, containerRef?.current?.clientWidth ?? 0, seg.start, seg.end);
+            }
           }
           break;
 
@@ -107,5 +119,5 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [wavesurfer]);
+  }, [wavesurfer, containerRef]);
 };
