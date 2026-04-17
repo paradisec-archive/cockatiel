@@ -7,6 +7,7 @@ import { Footer } from '@/components/Footer';
 import { Header } from '@/components/Header';
 import { HelpButton } from '@/components/HelpButton';
 import { KeyboardHelp } from '@/components/KeyboardHelp';
+import { LoopToggle } from '@/components/LoopToggle';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { VadSettings } from '@/components/VadSettings';
@@ -58,6 +59,7 @@ const App = () => {
                 <Controls />
                 <div className="flex items-center gap-3">
                   <ZoomControl />
+                  <LoopToggle />
                   <ExportMenu />
                   <HelpButton onOpen={() => setHelpOpen(true)} />
                 </div>

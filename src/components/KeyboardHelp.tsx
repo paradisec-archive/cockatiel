@@ -8,8 +8,8 @@ interface MouseAction {
 }
 
 const MOUSE_ACTIONS: MouseAction[] = [
-  { action: 'Click', description: 'Select segment & loop playback' },
-  { action: 'Double-click', description: 'Split segment at click' },
+  { action: 'Click', description: 'Select segment & play once (loop if Loop is on)' },
+  { action: 'Right-click', description: 'Open context menu (split, merge, delete, new segment…)' },
   { action: 'Drag', description: 'Move or resize segment' },
   { action: 'Scroll', description: 'Zoom waveform' },
 ];

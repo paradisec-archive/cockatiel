@@ -15,6 +15,7 @@ type AppPhase = 'upload' | 'processing' | 'ready';
 interface AppState {
   appPhase: AppPhase;
   defaultSpeaker: number;
+  loopOnSelect: boolean;
   mediaDuration: number;
   mediaFileName: string;
   processingProgress: number;
@@ -27,12 +28,15 @@ interface AppState {
   assignAllToSpeaker: (speakerIndex: number) => void;
   assignSpeaker: (segmentId: string, speakerIndex: number) => void;
   clearSegments: () => void;
+  createSegment: (start: number, end: number, speakerIndex: number) => string;
   deleteSegment: (id: string) => void;
   loadSegments: (segments: VadSegment[]) => void;
   mergeWithNext: (id: string) => void;
+  mergeWithPrevious: (id: string) => void;
   reset: () => void;
   selectSegment: (id: string | null) => void;
   selectAdjacentSegment: (direction: 'prev' | 'next') => void;
+  setLoopOnSelect: (value: boolean) => void;
   splitSegment: (id: string, atTime: number) => void;
   setAppPhase: (phase: AppPhase) => void;
   setDefaultSpeaker: (index: number) => void;
@@ -46,11 +50,20 @@ interface AppState {
   updateSegmentText: (id: string, value: string) => void;
 }
 
-const sortByStart = (segs: Annotation[]) => [...segs].sort((a, b) => a.start - b.start);
+export const sortByStart = (segs: Annotation[]) => [...segs].sort((a, b) => a.start - b.start);
+
+export const findSegmentAtTime = (segs: Annotation[], time: number) => segs.find((s) => time >= s.start && time <= s.end);
+
+// Seconds of silence left on either side of a split point, so adjacent
+// segments don't share an edge and stay visually distinct.
+const SPLIT_GAP = 0.05;
+
+export const canSplitAt = (seg: Pick<Annotation, 'start' | 'end'>, time: number) => time > seg.start + SPLIT_GAP && time < seg.end - SPLIT_GAP;
 
 const initialState = {
   appPhase: 'upload' as AppPhase,
   defaultSpeaker: 0,
+  loopOnSelect: false,
   mediaDuration: 0,
   mediaFileName: '',
   processingProgress: 0,
@@ -93,6 +106,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   selectSegment: (id) => set({ selectedSegmentId: id }),
 
+  setLoopOnSelect: (value) => set({ loopOnSelect: value }),
+
   selectAdjacentSegment: (direction) =>
     set((state) => {
       const sorted = sortByStart(state.segments);
@@ -110,11 +125,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   splitSegment: (id, atTime) =>
     set((state) => {
       const seg = state.segments.find((s) => s.id === id);
-      if (!seg || atTime <= seg.start || atTime >= seg.end) {
+      if (!seg || !canSplitAt(seg, atTime)) {
         return state;
       }
-      const left: Annotation = { ...seg, end: atTime };
-      const right: Annotation = { ...seg, id: crypto.randomUUID(), start: atTime, value: '' };
+      const left: Annotation = { ...seg, end: atTime - SPLIT_GAP };
+      const right: Annotation = { ...seg, id: crypto.randomUUID(), start: atTime + SPLIT_GAP, value: '' };
       return {
         segments: state.segments.flatMap((s) => (s.id === id ? [left, right] : [s])),
         selectedSegmentId: right.id,
@@ -150,6 +165,39 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedSegmentId: id,
       };
     }),
+
+  mergeWithPrevious: (id) =>
+    set((state) => {
+      const sorted = sortByStart(state.segments);
+      const idx = sorted.findIndex((s) => s.id === id);
+      if (idx <= 0) {
+        return state;
+      }
+      const current = sorted[idx];
+      const prev = sorted[idx - 1];
+      const merged: Annotation = { ...prev, end: current.end };
+      return {
+        segments: state.segments.flatMap((s) => {
+          if (s.id === prev.id) {
+            return [merged];
+          }
+          if (s.id === id) {
+            return [];
+          }
+          return [s];
+        }),
+        selectedSegmentId: prev.id,
+      };
+    }),
+
+  createSegment: (start, end, speakerIndex) => {
+    const id = crypto.randomUUID();
+    set((state) => ({
+      segments: [...state.segments, { end, id, speaker: speakerIndex, start, value: '' }],
+      selectedSegmentId: id,
+    }));
+    return id;
+  },
 
   clearSegments: () => set({ segments: [], selectedSegmentId: null }),
 

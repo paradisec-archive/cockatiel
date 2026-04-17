@@ -1,11 +1,12 @@
 import { useWavesurfer } from '@wavesurfer/react';
-import { createContext, useContext, useEffect, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { getSpeakerColour } from '@/lib/constants';
-import { useAppStore } from '@/lib/store';
+import { findSegmentAtTime, useAppStore } from '@/lib/store';
+import { type ClickContext, SegmentContextMenu } from './SegmentContextMenu';
 
 interface WavesurferContextValue {
   containerRef: React.RefObject<HTMLDivElement | null> | null;
@@ -122,7 +123,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     }
   }, [regions, segments, selectedSegmentId, isReady]);
 
-  // Region clicks → select segment + loop playback.
+  // Region clicks → select segment and play it once; loop only if loopOnSelect is on.
   // Use a flag to prevent the `interaction` event from immediately clearing the selection.
   const regionClickedRef = useRef(false);
   const loopingRegionRef = useRef<string | null>(null);
@@ -139,26 +140,17 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       region.play();
     });
 
-    // Double-click a region to split at that position
-    const unsubRegionDblClick = regions.on('region-double-clicked', (region, e) => {
-      e.stopPropagation();
-      const container = containerRef.current;
-      const duration = wavesurfer.getDuration();
-      const rect = container?.getBoundingClientRect();
-      if (!container || !rect || !duration) {
+    // Loop / play-once: when playback leaves the active region, restart it
+    // only if the user has opted into loop-on-select.
+    const unsubRegionOut = regions.on('region-out', (region) => {
+      if (region.id !== loopingRegionRef.current) {
         return;
       }
-      const scrollLeft = wavesurfer.getScroll();
-      const pxPerSec = container.scrollWidth / duration;
-      const clickTime = (e.clientX - rect.left + scrollLeft) / pxPerSec;
-      useAppStore.getState().splitSegment(region.id, clickTime);
-    });
-
-    // Loop: when playback leaves the active region, restart it
-    const unsubRegionOut = regions.on('region-out', (region) => {
-      if (region.id === loopingRegionRef.current) {
-        region.play();
+      if (!useAppStore.getState().loopOnSelect) {
+        loopingRegionRef.current = null;
+        return;
       }
+      region.play();
     });
 
     const unsubClick = wavesurfer.on('interaction', () => {
@@ -182,7 +174,6 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
     return () => {
       unsubRegionClick();
-      unsubRegionDblClick();
       unsubRegionOut();
       unsubRegionUpdated();
       unsubClick();
@@ -232,6 +223,26 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
 
   const ctxValue = useMemo(() => ({ containerRef, isReady, wavesurfer }), [wavesurfer, isReady]);
 
+  const getClickContext = useCallback(
+    (e: React.MouseEvent): ClickContext | null => {
+      const container = containerRef.current;
+      if (!wavesurfer || !container) {
+        return null;
+      }
+      const duration = wavesurfer.getDuration();
+      if (!duration) {
+        return null;
+      }
+      const rect = container.getBoundingClientRect();
+      const scrollLeft = wavesurfer.getScroll();
+      const pxPerSec = container.scrollWidth / duration;
+      const time = (e.clientX - rect.left + scrollLeft) / pxPerSec;
+      const segment = findSegmentAtTime(useAppStore.getState().segments, time);
+      return { segmentId: segment?.id ?? null, time };
+    },
+    [wavesurfer],
+  );
+
   return (
     <WavesurferContext.Provider value={ctxValue}>
       <div className="space-y-0.5">
@@ -239,7 +250,9 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
           <div className="flex w-[100px] shrink-0 items-center rounded-l-md border border-r-0 border-border bg-[var(--waveform-bg)] px-2.5 font-mono text-[0.65rem] uppercase tracking-widest text-muted-foreground/50">
             Waveform
           </div>
-          <div ref={containerRef} className="flex-1 overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />
+          <SegmentContextMenu getClickContext={getClickContext} className="flex-1">
+            <div ref={containerRef} className="overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />
+          </SegmentContextMenu>
         </div>
         {children}
       </div>

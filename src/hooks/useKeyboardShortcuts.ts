@@ -14,6 +14,7 @@ export const SHORTCUTS: Shortcut[] = [
   { key: 'S', description: 'Split segment at cursor' },
   { key: 'Delete', description: 'Delete selected segment' },
   { key: 'M', description: 'Merge segment with next' },
+  { key: 'Shift+M', description: 'Merge segment with previous' },
   { key: '[', description: 'Select previous segment' },
   { key: ']', description: 'Select next segment' },
   { key: '←', description: 'Skip back 5 seconds' },
@@ -74,7 +75,11 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null) => {
         case 'KeyM':
           if (store.selectedSegmentId) {
             e.preventDefault();
-            store.mergeWithNext(store.selectedSegmentId);
+            if (e.shiftKey) {
+              store.mergeWithPrevious(store.selectedSegmentId);
+            } else {
+              store.mergeWithNext(store.selectedSegmentId);
+            }
           }
           break;
 

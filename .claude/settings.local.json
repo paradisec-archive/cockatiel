@@ -6,7 +6,8 @@
       "Bash(pnpm run:*)",
       "Bash(pnpm lint:biome:*)",
       "Bash(pnpm lint:types:*)",
-      "Bash(pnpm lint:knip:*)"
+      "Bash(pnpm lint:knip:*)",
+      "Bash(echo \"exit=$?\")"
     ]
   }
 }
