@@ -235,7 +235,11 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       }
       const rect = container.getBoundingClientRect();
       const scrollLeft = wavesurfer.getScroll();
-      const pxPerSec = container.scrollWidth / duration;
+      // When unzoomed, minPxPerSec is 0 (fit-to-window). The true rendered width
+      // lives in the shadow DOM, so the outer container's scrollWidth is useless
+      // here — compute from the viewport width and duration instead.
+      const configuredPxPerSec = wavesurfer.options.minPxPerSec ?? 0;
+      const pxPerSec = configuredPxPerSec > 0 ? configuredPxPerSec : container.clientWidth / duration;
       const time = (e.clientX - rect.left + scrollLeft) / pxPerSec;
       const segment = findSegmentAtTime(useAppStore.getState().segments, time);
       return { segmentId: segment?.id ?? null, time };
