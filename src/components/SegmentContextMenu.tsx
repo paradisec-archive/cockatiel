@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -89,7 +89,7 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
   const defaultSpeaker = useAppStore((s) => s.defaultSpeaker);
   const { wavesurfer, containerRef } = useWavesurferContext();
 
-  const sorted = sortByStart(segments);
+  const sorted = useMemo(() => sortByStart(segments), [segments]);
 
   if (ctx.segmentId !== null) {
     const { segmentId } = ctx;

@@ -1,4 +1,5 @@
 import { useWavesurfer } from '@wavesurfer/react';
+import { Loader2Icon } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import type WaveSurfer from 'wavesurfer.js';
 import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
@@ -82,23 +83,57 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     });
   }, [wavesurfer, audioFile]);
 
-  // Rebuild regions when segments change
+  // Diff segments against the last-synced snapshot so text-only edits don't
+  // cause wavesurfer to tear down and re-add hundreds of region DOM nodes.
+  const prevRegionDataRef = useRef(new Map<string, { start: number; end: number; speaker: number }>());
   useEffect(() => {
     if (!isReady) {
       return;
     }
 
-    regions.clearRegions();
+    const prev = prevRegionDataRef.current;
+    const current = new Map<string, { start: number; end: number; speaker: number }>();
+    let changed = prev.size !== segments.length;
     for (const seg of segments) {
-      const colour = getSpeakerColour(seg.speaker);
-      regions.addRegion({
-        color: `${colour}30`,
-        drag: true,
-        end: seg.end,
-        id: seg.id,
-        resize: true,
-        start: seg.start,
-      });
+      const data = { start: seg.start, end: seg.end, speaker: seg.speaker };
+      current.set(seg.id, data);
+      if (!changed) {
+        const before = prev.get(seg.id);
+        if (!before || before.start !== data.start || before.end !== data.end || before.speaker !== data.speaker) {
+          changed = true;
+        }
+      }
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    prevRegionDataRef.current = current;
+
+    const regionMap = new Map(regions.getRegions().map((r) => [r.id, r]));
+
+    for (const id of prev.keys()) {
+      if (!current.has(id)) {
+        regionMap.get(id)?.remove();
+      }
+    }
+
+    for (const [id, next] of current) {
+      const before = prev.get(id);
+      const colour = getSpeakerColour(next.speaker);
+      if (!before) {
+        regions.addRegion({
+          color: `${colour}30`,
+          drag: true,
+          end: next.end,
+          id,
+          resize: true,
+          start: next.start,
+        });
+      } else if (before.start !== next.start || before.end !== next.end || before.speaker !== next.speaker) {
+        regionMap.get(id)?.setOptions({ color: `${colour}30`, end: next.end, start: next.start });
+      }
     }
   }, [regions, segments, isReady]);
 
@@ -111,15 +146,18 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     const prev = prevSelectedRef.current;
     prevSelectedRef.current = selectedSegmentId;
 
-    for (const region of regions.getRegions()) {
-      if (region.id === prev) {
-        const colour = getSpeakerColour(segments.find((s) => s.id === prev)?.speaker ?? 0);
-        region.setOptions({ color: `${colour}30` });
-      }
-      if (region.id === selectedSegmentId) {
-        const colour = getSpeakerColour(segments.find((s) => s.id === selectedSegmentId)?.speaker ?? 0);
-        region.setOptions({ color: `${colour}55` });
-      }
+    if (!prev && !selectedSegmentId) {
+      return;
+    }
+
+    const regionMap = new Map(regions.getRegions().map((r) => [r.id, r]));
+    const speakerFor = (id: string) => segments.find((s) => s.id === id)?.speaker ?? 0;
+
+    if (prev) {
+      regionMap.get(prev)?.setOptions({ color: `${getSpeakerColour(speakerFor(prev))}30` });
+    }
+    if (selectedSegmentId) {
+      regionMap.get(selectedSegmentId)?.setOptions({ color: `${getSpeakerColour(speakerFor(selectedSegmentId))}55` });
     }
   }, [regions, segments, selectedSegmentId, isReady]);
 
@@ -192,7 +230,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       return;
     }
 
-    const emitViewport = (visibleStartTime: number, visibleEndTime: number) => {
+    const doEmit = (visibleStartTime: number, visibleEndTime: number) => {
       if (!containerRef.current) {
         return;
       }
@@ -200,10 +238,32 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       onViewportChangeRef.current?.({ pixelsPerSecond: pps, visibleEndTime, visibleStartTime });
     };
 
+    // Wavesurfer emits `scroll` at a high rate during zoom drags. Coalesce
+    // into at most one emission per animation frame — the downstream tier
+    // re-render is the expensive part.
+    let rafId: number | null = null;
+    let pending: [number, number] | null = null;
+
+    const emitViewport = (visibleStartTime: number, visibleEndTime: number) => {
+      pending = [visibleStartTime, visibleEndTime];
+      if (rafId !== null) {
+        return;
+      }
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        if (!pending) {
+          return;
+        }
+        const [s, e] = pending;
+        pending = null;
+        doEmit(s, e);
+      });
+    };
+
     const emitFullViewport = () => {
       const duration = wavesurfer.getDuration();
       if (duration > 0) {
-        emitViewport(0, duration);
+        doEmit(0, duration);
       }
     };
 
@@ -218,6 +278,9 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
     return () => {
       unsubScroll();
       unsubReady();
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
     };
   }, [wavesurfer]);
 
@@ -255,7 +318,15 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
             Waveform
           </div>
           <SegmentContextMenu getClickContext={getClickContext} className="min-w-0 flex-1">
-            <div ref={containerRef} className="overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />
+            <div className="relative">
+              <div ref={containerRef} className="min-h-[160px] overflow-hidden rounded-r-lg border border-border bg-[var(--waveform-bg)]" />
+              {!isReady && (
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2 text-muted-foreground">
+                  <Loader2Icon className="size-5 animate-spin" />
+                  <span className="font-mono text-xs uppercase tracking-widest">Loading audio…</span>
+                </div>
+              )}
+            </div>
           </SegmentContextMenu>
         </div>
         {children}

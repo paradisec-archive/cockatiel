@@ -9,12 +9,19 @@ interface AnnotationTierProps {
   viewport: TimelineViewport;
 }
 
+// Fraction of the viewport width rendered outside the visible edges on each side
+// so segments enter the DOM before they scroll in.
+const VIEWPORT_BUFFER_RATIO = 0.25;
+
 export const AnnotationTier = ({ label, viewport }: AnnotationTierProps) => {
   const segments = useAppStore((s) => s.segments);
   const selectedSegmentId = useAppStore((s) => s.selectedSegmentId);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const { pixelsPerSecond, visibleStartTime } = viewport;
+  const { pixelsPerSecond, visibleStartTime, visibleEndTime } = viewport;
+  const buffer = (visibleEndTime - visibleStartTime) * VIEWPORT_BUFFER_RATIO;
+  const startT = visibleStartTime - buffer;
+  const endT = visibleEndTime + buffer;
 
   const getClickContext = useCallback(
     (e: React.MouseEvent): ClickContext | null => {
@@ -38,12 +45,14 @@ export const AnnotationTier = ({ label, viewport }: AnnotationTierProps) => {
 
       <SegmentContextMenu getClickContext={getClickContext} className="min-w-0 flex-1">
         <div ref={trackRef} className="relative h-full overflow-hidden rounded-r-md border border-border bg-card">
-          {segments.map((seg) => {
-            const left = (seg.start - visibleStartTime) * pixelsPerSecond;
-            const width = (seg.end - seg.start) * pixelsPerSecond;
+          {segments
+            .filter((seg) => seg.id === selectedSegmentId || (seg.end >= startT && seg.start <= endT))
+            .map((seg) => {
+              const left = (seg.start - visibleStartTime) * pixelsPerSecond;
+              const width = (seg.end - seg.start) * pixelsPerSecond;
 
-            return <AnnotationBlock key={seg.id} annotation={seg} isSelected={seg.id === selectedSegmentId} left={left} width={width} />;
-          })}
+              return <AnnotationBlock key={seg.id} annotation={seg} isSelected={seg.id === selectedSegmentId} left={left} width={width} />;
+            })}
         </div>
       </SegmentContextMenu>
     </div>

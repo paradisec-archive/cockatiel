@@ -3,11 +3,10 @@
     "allow": [
       "mcp__plugin_context7_context7__resolve-library-id",
       "mcp__plugin_context7_context7__query-docs",
-      "Bash(pnpm run:*)",
       "Bash(pnpm lint:biome:*)",
       "Bash(pnpm lint:types:*)",
       "Bash(pnpm lint:knip:*)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(pnpm test *)"
     ]
   }
 }

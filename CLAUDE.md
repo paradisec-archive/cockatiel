@@ -11,3 +11,7 @@ Prefer the project's `pnpm` scripts over raw tool invocations:
 - `pnpm test:watch` — Vitest (watch)
 - `pnpm dev` — Vite dev server
 - `pnpm build` — production build
+
+## Imports
+
+- `lucide-react` icons: always use the `Icon`-suffixed alias (e.g. `PlayIcon`, `Loader2Icon`), never the bare name.
