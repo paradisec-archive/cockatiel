@@ -1,4 +1,4 @@
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -10,11 +10,10 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { type Annotation, canSplitAt, sortByStart, useAppStore } from '@/lib/store';
+import { type InspectCtx, rejectionMessage, SegmentInspect, type SegmentState } from '@/lib/segment-ops';
+import { useAppStore } from '@/lib/store';
 import { zoomToSegment } from '@/lib/zoom';
 import { useWavesurferContext } from './Waveform';
-
-const NEW_SEGMENT_DURATION = 1.0;
 
 export interface ClickContext {
   segmentId: string | null;
@@ -26,37 +25,6 @@ interface SegmentContextMenuProps {
   className?: string;
   getClickContext: (e: React.MouseEvent) => ClickContext | null;
 }
-
-const nearestSpeaker = (sorted: Annotation[], time: number, fallback: number) => {
-  if (!sorted.length) {
-    return fallback;
-  }
-  let nearest = sorted[0];
-  let nearestDist = Math.abs(time - (nearest.start + nearest.end) / 2);
-  for (const seg of sorted) {
-    const dist = Math.abs(time - (seg.start + seg.end) / 2);
-    if (dist < nearestDist) {
-      nearest = seg;
-      nearestDist = dist;
-    }
-  }
-  return nearest.speaker;
-};
-
-const computeNewSegmentBounds = (sorted: Annotation[], time: number, duration: number) => {
-  const half = NEW_SEGMENT_DURATION / 2;
-  let start = Math.max(0, time - half);
-  let end = Math.min(duration, time + half);
-  for (const seg of sorted) {
-    if (seg.end <= time && seg.end > start) {
-      start = seg.end;
-    }
-    if (seg.start >= time && seg.start < end) {
-      end = seg.start;
-    }
-  }
-  return { end, start };
-};
 
 export const SegmentContextMenu = ({ children, className, getClickContext }: SegmentContextMenuProps) => {
   const [ctx, setCtx] = useState<ClickContext | null>(null);
@@ -84,27 +52,28 @@ export const SegmentContextMenu = ({ children, className, getClickContext }: Seg
 
 const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
   const segments = useAppStore((s) => s.segments);
+  const selectedSegmentId = useAppStore((s) => s.selectedSegmentId);
   const speakerNames = useAppStore((s) => s.speakerNames);
   const mediaDuration = useAppStore((s) => s.mediaDuration);
   const defaultSpeaker = useAppStore((s) => s.defaultSpeaker);
   const { wavesurfer, containerRef } = useWavesurferContext();
 
-  const sorted = useMemo(() => sortByStart(segments), [segments]);
+  const state: SegmentState = { segments, selectedSegmentId };
+  const inspectCtx: InspectCtx = { defaultSpeaker, mediaDuration, speakerCount: speakerNames.length };
 
   if (ctx.segmentId !== null) {
     const { segmentId } = ctx;
-    const idx = sorted.findIndex((s) => s.id === segmentId);
-    const seg = idx === -1 ? null : sorted[idx];
-    const hasPrev = idx > 0;
-    const hasNext = idx !== -1 && idx < sorted.length - 1;
-    const canSplit = !!seg && canSplitAt(seg, ctx.time);
+    const seg = segments.find((s) => s.id === segmentId);
+    const splitReason = SegmentInspect.split(state, segmentId, ctx.time);
+    const mergeNextReason = SegmentInspect.mergeNext(state, segmentId);
+    const mergePrevReason = SegmentInspect.mergePrev(state, segmentId);
     const canZoom = !!seg && !!wavesurfer;
 
     return (
       <>
         <ContextMenuItem
-          disabled={!canSplit}
-          title={canSplit ? undefined : 'Click inside the segment to split it'}
+          disabled={splitReason !== null}
+          title={splitReason ? rejectionMessage(splitReason) : undefined}
           onClick={() => useAppStore.getState().splitSegment(segmentId, ctx.time)}
         >
           Split here
@@ -133,16 +102,16 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
           </ContextMenuSubContent>
         </ContextMenuSub>
         <ContextMenuItem
-          disabled={!hasNext}
-          title={hasNext ? undefined : 'No following segment to merge with'}
+          disabled={mergeNextReason !== null}
+          title={mergeNextReason ? rejectionMessage(mergeNextReason) : undefined}
           onClick={() => useAppStore.getState().mergeWithNext(segmentId)}
         >
           Merge with next
           <ContextMenuShortcut>M</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
-          disabled={!hasPrev}
-          title={hasPrev ? undefined : 'No preceding segment to merge with'}
+          disabled={mergePrevReason !== null}
+          title={mergePrevReason ? rejectionMessage(mergePrevReason) : undefined}
           onClick={() => useAppStore.getState().mergeWithPrevious(segmentId)}
         >
           Merge with previous
@@ -157,15 +126,20 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
     );
   }
 
-  const bounds = computeNewSegmentBounds(sorted, ctx.time, mediaDuration);
-  const valid = bounds.end - bounds.start > 0.05;
-  const speaker = nearestSpeaker(sorted, ctx.time, defaultSpeaker);
+  const createReason = SegmentInspect.createAt(state, ctx.time, inspectCtx);
+  const bounds = SegmentInspect.proposedBoundsAt(segments, ctx.time, mediaDuration);
+  const speaker = SegmentInspect.nearestSpeaker(segments, ctx.time, defaultSpeaker);
 
   return (
     <ContextMenuItem
-      disabled={!valid}
-      title={valid ? undefined : 'Not enough space here for a new segment'}
-      onClick={() => useAppStore.getState().createSegment(bounds.start, bounds.end, speaker)}
+      disabled={createReason !== null}
+      title={createReason ? rejectionMessage(createReason) : undefined}
+      onClick={() => {
+        if (!bounds) {
+          return;
+        }
+        useAppStore.getState().createSegment(bounds.start, bounds.end, speaker);
+      }}
     >
       New segment here
     </ContextMenuItem>

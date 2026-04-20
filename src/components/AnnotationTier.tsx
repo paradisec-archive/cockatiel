@@ -1,5 +1,6 @@
 import { useCallback, useRef } from 'react';
-import { findSegmentAtTime, useAppStore } from '@/lib/store';
+import { SegmentInspect } from '@/lib/segment-ops';
+import { useAppStore } from '@/lib/store';
 import { AnnotationBlock } from './AnnotationBlock';
 import { type ClickContext, SegmentContextMenu } from './SegmentContextMenu';
 import type { TimelineViewport } from './Waveform';
@@ -31,7 +32,7 @@ export const AnnotationTier = ({ label, viewport }: AnnotationTierProps) => {
       }
       const rect = track.getBoundingClientRect();
       const time = (e.clientX - rect.left) / pixelsPerSecond + visibleStartTime;
-      const segment = findSegmentAtTime(useAppStore.getState().segments, time);
+      const segment = SegmentInspect.findAtTime(useAppStore.getState().segments, time);
       return { segmentId: segment?.id ?? null, time };
     },
     [pixelsPerSecond, visibleStartTime],

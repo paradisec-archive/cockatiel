@@ -6,7 +6,8 @@ import MinimapPlugin from 'wavesurfer.js/dist/plugins/minimap.esm.js';
 import RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
 import ZoomPlugin from 'wavesurfer.js/dist/plugins/zoom.esm.js';
 import { getSpeakerColour } from '@/lib/constants';
-import { findSegmentAtTime, useAppStore } from '@/lib/store';
+import { SegmentInspect } from '@/lib/segment-ops';
+import { useAppStore } from '@/lib/store';
 import { type ClickContext, SegmentContextMenu } from './SegmentContextMenu';
 
 interface WavesurferContextValue {
@@ -200,9 +201,15 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       useAppStore.getState().selectSegment(null);
     });
 
-    // Sync drag/resize back to store
+    // Sync drag/resize back to store. If the store rejects (overlap, out-of-bounds,
+    // below-min-duration), its segments reference is unchanged — the reconciliation
+    // effect won't fire — so snap the region back to canonical bounds here.
     const unsubRegionUpdated = regions.on('region-updated', (region) => {
       useAppStore.getState().updateSegmentBounds(region.id, region.start, region.end);
+      const seg = useAppStore.getState().segments.find((s) => s.id === region.id);
+      if (seg && (seg.start !== region.start || seg.end !== region.end)) {
+        region.setOptions({ end: seg.end, start: seg.start });
+      }
     });
 
     // Stop looping when user pauses
@@ -304,7 +311,7 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
       const configuredPxPerSec = wavesurfer.options.minPxPerSec ?? 0;
       const pxPerSec = configuredPxPerSec > 0 ? configuredPxPerSec : container.clientWidth / duration;
       const time = (e.clientX - rect.left + scrollLeft) / pxPerSec;
-      const segment = findSegmentAtTime(useAppStore.getState().segments, time);
+      const segment = SegmentInspect.findAtTime(useAppStore.getState().segments, time);
       return { segmentId: segment?.id ?? null, time };
     },
     [wavesurfer],

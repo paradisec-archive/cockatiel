@@ -10,6 +10,7 @@ import { KeyboardHelp } from '@/components/KeyboardHelp';
 import { LoopToggle } from '@/components/LoopToggle';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
+import { Toaster } from '@/components/ui/sonner';
 import { VadSettings } from '@/components/VadSettings';
 import { type TimelineViewport, useWavesurferContext, Waveform } from '@/components/Waveform';
 import { ZoomControl } from '@/components/ZoomControl';
@@ -77,6 +78,7 @@ const App = () => {
 
       <Footer />
       <KeyboardHelp open={helpOpen} onOpenChange={setHelpOpen} />
+      <Toaster position="top-center" richColors />
     </div>
   );
 };

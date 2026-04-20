@@ -1,14 +1,8 @@
 import { create } from 'zustand';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
+import type { Annotation, SegmentCtx } from './segment-ops';
+import { SegmentInspect, SegmentOps } from './segment-ops';
 import type { VadConfig, VadSegment } from './vad-processor';
-
-export interface Annotation {
-  end: number;
-  id: string;
-  speaker: number;
-  start: number;
-  value: string;
-}
 
 type AppPhase = 'upload' | 'processing' | 'ready';
 
@@ -28,7 +22,7 @@ interface AppState {
   assignAllToSpeaker: (speakerIndex: number) => void;
   assignSpeaker: (segmentId: string, speakerIndex: number) => void;
   clearSegments: () => void;
-  createSegment: (start: number, end: number, speakerIndex: number) => string;
+  createSegment: (start: number, end: number, speakerIndex: number) => string | null;
   deleteSegment: (id: string) => void;
   loadSegments: (segments: VadSegment[]) => void;
   mergeWithNext: (id: string) => void;
@@ -50,15 +44,12 @@ interface AppState {
   updateSegmentText: (id: string, value: string) => void;
 }
 
-export const sortByStart = (segs: Annotation[]) => [...segs].sort((a, b) => a.start - b.start);
-
-export const findSegmentAtTime = (segs: Annotation[], time: number) => segs.find((s) => time >= s.start && time <= s.end);
-
-// Seconds of silence left on either side of a split point, so adjacent
-// segments don't share an edge and stay visually distinct.
-const SPLIT_GAP = 0.05;
-
-export const canSplitAt = (seg: Pick<Annotation, 'start' | 'end'>, time: number) => time > seg.start + SPLIT_GAP && time < seg.end - SPLIT_GAP;
+const makeCtx = (state: AppState): SegmentCtx => ({
+  defaultSpeaker: state.defaultSpeaker,
+  mediaDuration: state.mediaDuration,
+  newId: () => crypto.randomUUID(),
+  speakerCount: state.speakerNames.length,
+});
 
 const initialState = {
   appPhase: 'upload' as AppPhase,
@@ -94,10 +85,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ appPhase: 'ready', processingProgress: 0, segments, statusMessage: '' });
   },
 
-  updateSegmentBounds: (id, start, end) =>
-    set((state) => ({
-      segments: state.segments.map((s) => (s.id === id ? { ...s, start, end } : s)),
-    })),
+  updateSegmentBounds: (id, start, end) => set((state) => SegmentOps.rebound(state, id, start, end, makeCtx(state))),
 
   updateSegmentText: (id, value) =>
     set((state) => ({
@@ -110,7 +98,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   selectAdjacentSegment: (direction) =>
     set((state) => {
-      const sorted = sortByStart(state.segments);
+      const sorted = SegmentInspect.sortedByStart(state.segments);
       if (!sorted.length) {
         return state;
       }
@@ -122,94 +110,29 @@ export const useAppStore = create<AppState>((set, get) => ({
       return { selectedSegmentId: sorted[next].id };
     }),
 
-  splitSegment: (id, atTime) =>
-    set((state) => {
-      const seg = state.segments.find((s) => s.id === id);
-      if (!seg || !canSplitAt(seg, atTime)) {
-        return state;
-      }
-      const left: Annotation = { ...seg, end: atTime - SPLIT_GAP };
-      const right: Annotation = { ...seg, id: crypto.randomUUID(), start: atTime + SPLIT_GAP, value: '' };
-      return {
-        segments: state.segments.flatMap((s) => (s.id === id ? [left, right] : [s])),
-        selectedSegmentId: right.id,
-      };
-    }),
+  splitSegment: (id, atTime) => set((state) => SegmentOps.split(state, id, atTime, makeCtx(state))),
 
-  deleteSegment: (id) =>
-    set((state) => ({
-      segments: state.segments.filter((s) => s.id !== id),
-      selectedSegmentId: state.selectedSegmentId === id ? null : state.selectedSegmentId,
-    })),
+  deleteSegment: (id) => set((state) => SegmentOps.remove(state, id)),
 
-  mergeWithNext: (id) =>
-    set((state) => {
-      const sorted = sortByStart(state.segments);
-      const idx = sorted.findIndex((s) => s.id === id);
-      if (idx === -1 || idx >= sorted.length - 1) {
-        return state;
-      }
-      const current = sorted[idx];
-      const next = sorted[idx + 1];
-      const merged: Annotation = { ...current, end: next.end };
-      return {
-        segments: state.segments.flatMap((s) => {
-          if (s.id === id) {
-            return [merged];
-          }
-          if (s.id === next.id) {
-            return [];
-          }
-          return [s];
-        }),
-        selectedSegmentId: id,
-      };
-    }),
+  mergeWithNext: (id) => set((state) => SegmentOps.mergeNext(state, id)),
 
-  mergeWithPrevious: (id) =>
-    set((state) => {
-      const sorted = sortByStart(state.segments);
-      const idx = sorted.findIndex((s) => s.id === id);
-      if (idx <= 0) {
-        return state;
-      }
-      const current = sorted[idx];
-      const prev = sorted[idx - 1];
-      const merged: Annotation = { ...prev, end: current.end };
-      return {
-        segments: state.segments.flatMap((s) => {
-          if (s.id === prev.id) {
-            return [merged];
-          }
-          if (s.id === id) {
-            return [];
-          }
-          return [s];
-        }),
-        selectedSegmentId: prev.id,
-      };
-    }),
+  mergeWithPrevious: (id) => set((state) => SegmentOps.mergePrev(state, id)),
 
   createSegment: (start, end, speakerIndex) => {
-    const id = crypto.randomUUID();
-    set((state) => ({
-      segments: [...state.segments, { end, id, speaker: speakerIndex, start, value: '' }],
-      selectedSegmentId: id,
-    }));
-    return id;
+    const state = get();
+    const next = SegmentOps.create(state, start, end, speakerIndex, makeCtx(state));
+    if (next === state) {
+      return null;
+    }
+    set(next);
+    return next.selectedSegmentId;
   },
 
   clearSegments: () => set({ segments: [], selectedSegmentId: null }),
 
-  assignSpeaker: (segmentId, speakerIndex) =>
-    set((state) => ({
-      segments: state.segments.map((s) => (s.id === segmentId ? { ...s, speaker: speakerIndex } : s)),
-    })),
+  assignSpeaker: (segmentId, speakerIndex) => set((state) => SegmentOps.assignSpeaker(state, segmentId, speakerIndex, makeCtx(state))),
 
-  assignAllToSpeaker: (speakerIndex) =>
-    set((state) => ({
-      segments: state.segments.map((s) => ({ ...s, speaker: speakerIndex })),
-    })),
+  assignAllToSpeaker: (speakerIndex) => set((state) => SegmentOps.assignAll(state, speakerIndex, makeCtx(state))),
 
   setSpeakerCount: (count) => {
     const clamped = Math.max(1, Math.min(MAX_SPEAKERS, count));
@@ -221,10 +144,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (names.length > clamped) {
         names.length = clamped;
       }
-      const lastValid = clamped - 1;
-      const segments = state.segments.map((s) => (s.speaker >= clamped ? { ...s, speaker: lastValid } : s));
-      const defaultSpeaker = state.defaultSpeaker >= clamped ? lastValid : state.defaultSpeaker;
-      return { defaultSpeaker, segments, speakerNames: names };
+      const reconciled = SegmentOps.reconcileSpeakers(state, clamped);
+      const defaultSpeaker = state.defaultSpeaker >= clamped ? clamped - 1 : state.defaultSpeaker;
+      return { defaultSpeaker, segments: reconciled.segments, speakerNames: names };
     });
   },
 

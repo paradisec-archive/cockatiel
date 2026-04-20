@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 import type WaveSurfer from 'wavesurfer.js';
+import { rejectionMessage, SegmentInspect } from '@/lib/segment-ops';
 import { useAppStore } from '@/lib/store';
 import { isFormElement } from '@/lib/utils';
 import { zoomToSegment } from '@/lib/zoom';
@@ -62,7 +64,14 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef
         case 'KeyS':
           if (store.selectedSegmentId) {
             e.preventDefault();
-            store.splitSegment(store.selectedSegmentId, wavesurfer.getCurrentTime());
+            const id = store.selectedSegmentId;
+            const time = wavesurfer.getCurrentTime();
+            const reason = SegmentInspect.split(store, id, time);
+            if (reason) {
+              toast.warning(rejectionMessage(reason));
+            } else {
+              store.splitSegment(id, time);
+            }
           }
           break;
 
@@ -87,10 +96,14 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef
         case 'KeyM':
           if (store.selectedSegmentId) {
             e.preventDefault();
-            if (e.shiftKey) {
-              store.mergeWithPrevious(store.selectedSegmentId);
+            const id = store.selectedSegmentId;
+            const reason = e.shiftKey ? SegmentInspect.mergePrev(store, id) : SegmentInspect.mergeNext(store, id);
+            if (reason) {
+              toast.warning(rejectionMessage(reason));
+            } else if (e.shiftKey) {
+              store.mergeWithPrevious(id);
             } else {
-              store.mergeWithNext(store.selectedSegmentId);
+              store.mergeWithNext(id);
             }
           }
           break;

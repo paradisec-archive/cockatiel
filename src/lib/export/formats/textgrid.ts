@@ -1,5 +1,5 @@
 import { getSpeakerName } from '../../constants';
-import type { Annotation } from '../../store';
+import type { Annotation } from '../../segment-ops';
 import { escapeTextGridQuotes } from '../tabular';
 import type { ExportData, Exporter } from '../types';
 

@@ -1,4 +1,4 @@
-import type { Annotation } from '../store';
+import type { Annotation } from '../segment-ops';
 
 export interface ExportData {
   mediaDuration: number;

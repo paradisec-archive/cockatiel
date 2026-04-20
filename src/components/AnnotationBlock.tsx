@@ -1,6 +1,7 @@
 import { memo, useCallback } from 'react';
 import { getSpeakerColour } from '@/lib/constants';
-import { type Annotation, useAppStore } from '@/lib/store';
+import type { Annotation } from '@/lib/segment-ops';
+import { useAppStore } from '@/lib/store';
 
 interface AnnotationBlockProps {
   annotation: Annotation;
