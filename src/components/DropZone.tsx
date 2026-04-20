@@ -1,12 +1,17 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Button } from '@/components/ui/button';
+import { prewarm } from '@/lib/vad';
 
 interface DropZoneProps {
   onFileSelected: (file: File) => void;
 }
 
 export const DropZone = ({ onFileSelected }: DropZoneProps) => {
+  useEffect(() => {
+    prewarm();
+  }, []);
+
   const onDrop = useCallback(
     (accepted: File[]) => {
       if (accepted[0]) {

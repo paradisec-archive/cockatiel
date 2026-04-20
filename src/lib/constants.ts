@@ -1,4 +1,4 @@
-import type { VadConfig } from './vad-processor';
+import type { VadConfig } from './vad';
 
 const SPEAKER_COLOURS = ['#e11d48', '#06b6d4', '#f59e0b', '#8b5cf6', '#10b981', '#f97316', '#3b82f6', '#ec4899'];
 

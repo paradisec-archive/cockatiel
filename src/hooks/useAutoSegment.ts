@@ -1,13 +1,21 @@
 import { useCallback, useRef } from 'react';
+import { toast } from 'sonner';
 import { resampleTo16kMono } from '@/lib/audio-resample';
 import { useAppStore } from '@/lib/store';
-import { runEnergyVad, runSileroVad, type VadSegment } from '@/lib/vad-processor';
-import { loadVadModule } from '@/lib/wasm-manager';
+import { segment } from '@/lib/vad';
+
+const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
 
 export const useAutoSegment = () => {
   const audioFileRef = useRef<File | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const processFile = useCallback(async (file: File) => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const { signal } = controller;
+
     const store = useAppStore.getState();
     audioFileRef.current = file;
 
@@ -24,37 +32,35 @@ export const useAutoSegment = () => {
       audioContext.close();
       audioContext = null;
 
+      if (signal.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
       store.setMediaFile(file.name, originalBuffer.duration);
       store.setProgress(0.1);
 
-      const [samples16k, vadModule] = await Promise.all([
-        resampleTo16kMono(originalBuffer),
-        loadVadModule((status) => store.setStatus(status)).catch(() => null),
-      ]);
-
+      const samples16k = await resampleTo16kMono(originalBuffer);
       store.setProgress(0.3);
       store.setStatus('Segmenting audio...');
 
       // Read vadConfig fresh — user may have changed settings since processing started
       const { vadConfig } = useAppStore.getState();
 
-      let segments: VadSegment[];
-      if (vadModule) {
-        segments = await runSileroVad(vadModule, samples16k, vadConfig, (fraction) => {
-          store.setProgress(0.3 + fraction * 0.7);
-        });
-      } else {
-        store.setStatus('WASM unavailable, using energy-based VAD...');
-        segments = await runEnergyVad(samples16k, vadConfig, (fraction) => {
-          store.setProgress(0.3 + fraction * 0.7);
-        });
-      }
+      const segments = await segment(samples16k, vadConfig, {
+        onProgress: (fraction) => store.setProgress(0.3 + fraction * 0.7),
+        onStatus: (msg) => store.setStatus(msg),
+        signal,
+      });
 
       store.loadSegments(segments);
     } catch (error) {
       audioContext?.close();
+      if (isAbortError(error)) {
+        return;
+      }
       console.error('Auto-segment failed:', error);
-      store.setStatus(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Auto-segment failed: ${message}`);
       store.setAppPhase('upload');
     }
   }, []);

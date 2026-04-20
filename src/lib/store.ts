@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
 import type { Annotation, SegmentCtx } from './segment-ops';
 import { SegmentInspect, SegmentOps } from './segment-ops';
-import type { VadConfig, VadSegment } from './vad-processor';
+import type { VadConfig, VadSegment } from './vad';
 
 type AppPhase = 'upload' | 'processing' | 'ready';
 
