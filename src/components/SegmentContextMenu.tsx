@@ -12,8 +12,7 @@ import {
 } from '@/components/ui/context-menu';
 import { type InspectCtx, rejectionMessage, SegmentInspect, type SegmentState } from '@/lib/segment-ops';
 import { useAppStore } from '@/lib/store';
-import { zoomToSegment } from '@/lib/zoom';
-import { useWavesurferContext } from './Waveform';
+import { useMediaPlayer } from './Waveform';
 
 export interface ClickContext {
   segmentId: string | null;
@@ -56,7 +55,7 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
   const speakerNames = useAppStore((s) => s.speakerNames);
   const mediaDuration = useAppStore((s) => s.mediaDuration);
   const defaultSpeaker = useAppStore((s) => s.defaultSpeaker);
-  const { wavesurfer, containerRef } = useWavesurferContext();
+  const player = useMediaPlayer();
 
   const state: SegmentState = { segments, selectedSegmentId };
   const inspectCtx: InspectCtx = { defaultSpeaker, mediaDuration, speakerCount: speakerNames.length };
@@ -67,7 +66,7 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
     const splitReason = SegmentInspect.split(state, segmentId, ctx.time);
     const mergeNextReason = SegmentInspect.mergeNext(state, segmentId);
     const mergePrevReason = SegmentInspect.mergePrev(state, segmentId);
-    const canZoom = !!seg && !!wavesurfer;
+    const canZoom = !!seg && !!player;
 
     return (
       <>
@@ -82,10 +81,10 @@ const MenuBody = ({ ctx }: { ctx: ClickContext }) => {
         <ContextMenuItem
           disabled={!canZoom}
           onClick={() => {
-            if (!seg || !wavesurfer) {
+            if (!seg || !player) {
               return;
             }
-            zoomToSegment(wavesurfer, containerRef?.current?.clientWidth ?? 0, seg.start, seg.end);
+            player.zoomToWindow(seg.start, seg.end);
           }}
         >
           Zoom here

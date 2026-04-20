@@ -5,7 +5,7 @@ export interface RegionSpec {
   start: number;
 }
 
-export interface DesiredState {
+export interface DesiredRegions {
   loopOnSelect: boolean;
   segments: RegionSpec[];
   selectedId: string | null;
@@ -17,5 +17,5 @@ export interface RegionSync {
   clientXToTime(clientX: number): number | null;
   dispose(): void;
   on(listener: (event: RegionEvent) => void): () => void;
-  sync(state: DesiredState): void;
+  sync(state: DesiredRegions): void;
 }

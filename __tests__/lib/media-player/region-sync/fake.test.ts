@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { RegionSpec } from '@/lib/region-sync/types';
+import type { RegionSpec } from '@/lib/media-player/region-sync/types';
 import { createFakeRegionSync } from './fake';
 
 const r = (id: string, start: number, end: number, speaker = 0): RegionSpec => ({ end, id, speaker, start });

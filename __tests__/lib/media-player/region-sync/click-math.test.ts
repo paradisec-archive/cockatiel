@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clientXToTime } from '@/lib/region-sync/click-math';
+import { clientXToTime } from '@/lib/media-player/region-sync/click-math';
 
 describe('clientXToTime', () => {
   it('maps a click at the container left edge to time 0 when unscrolled', () => {

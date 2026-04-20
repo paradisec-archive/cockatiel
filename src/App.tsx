@@ -12,7 +12,7 @@ import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { Toaster } from '@/components/ui/sonner';
 import { VadSettings } from '@/components/VadSettings';
-import { type TimelineViewport, useWavesurferContext, Waveform } from '@/components/Waveform';
+import { type TimelineViewport, useMediaPlayer, Waveform } from '@/components/Waveform';
 import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -25,8 +25,8 @@ const defaultViewport: TimelineViewport = {
 };
 
 const WorkspaceKeyboardShortcuts = () => {
-  const { wavesurfer, containerRef } = useWavesurferContext();
-  useKeyboardShortcuts(wavesurfer, containerRef);
+  const player = useMediaPlayer();
+  useKeyboardShortcuts(player);
   return null;
 };
 

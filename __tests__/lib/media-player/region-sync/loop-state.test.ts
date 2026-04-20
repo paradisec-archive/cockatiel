@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { IDLE, type LoopState, nextLoopState } from '@/lib/region-sync/loop-state';
+import { IDLE, type LoopState, nextLoopState } from '@/lib/media-player/region-sync/loop-state';
 
 const looping = (regionId: string): LoopState => ({ kind: 'looping', regionId });
 

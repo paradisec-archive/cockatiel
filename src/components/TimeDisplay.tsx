@@ -1,38 +1,36 @@
 import { useEffect, useRef } from 'react';
 import { formatTime } from '@/lib/constants';
-import { useWavesurferContext } from './Waveform';
+import { useMediaPlayer } from './Waveform';
 
 export const TimeDisplay = () => {
-  const { wavesurfer } = useWavesurferContext();
+  const player = useMediaPlayer();
   const spanRef = useRef<HTMLSpanElement>(null);
   const durationRef = useRef('0:00.0');
 
-  // Update duration once on ready
   useEffect(() => {
-    if (!wavesurfer) {
+    if (!player) {
       return;
     }
-    const unsub = wavesurfer.on('ready', () => {
-      durationRef.current = formatTime(wavesurfer.getDuration());
+    const snapshot = player.getState();
+    if (snapshot.isReady) {
+      durationRef.current = formatTime(snapshot.duration);
       if (spanRef.current) {
-        spanRef.current.textContent = `0:00.0 / ${durationRef.current}`;
+        spanRef.current.textContent = `${formatTime(snapshot.currentTime)} / ${durationRef.current}`;
       }
-    });
-    return unsub;
-  }, [wavesurfer]);
-
-  // Update current time via ref (no re-renders at 60fps)
-  useEffect(() => {
-    if (!wavesurfer) {
-      return;
     }
-    const unsub = wavesurfer.on('timeupdate', (currentTime: number) => {
-      if (spanRef.current) {
-        spanRef.current.textContent = `${formatTime(currentTime)} / ${durationRef.current}`;
+    return player.on((event) => {
+      if (event.type === 'ready') {
+        durationRef.current = formatTime(event.duration);
+        if (spanRef.current) {
+          spanRef.current.textContent = `0:00.0 / ${durationRef.current}`;
+        }
+      } else if (event.type === 'timeupdate') {
+        if (spanRef.current) {
+          spanRef.current.textContent = `${formatTime(event.currentTime)} / ${durationRef.current}`;
+        }
       }
     });
-    return unsub;
-  }, [wavesurfer]);
+  }, [player]);
 
   return (
     <span ref={spanRef} className="font-mono text-xs tabular-nums text-muted-foreground">

@@ -1,9 +1,10 @@
 import type WaveSurfer from 'wavesurfer.js';
 import type RegionsPlugin from 'wavesurfer.js/dist/plugins/regions.esm.js';
+import { createEmitter } from '../emitter';
 import { clientXToTime } from './click-math';
 import { diffRegions } from './diff';
 import { IDLE, type LoopState, nextLoopState } from './loop-state';
-import type { DesiredState, RegionEvent, RegionSpec, RegionSync } from './types';
+import type { DesiredRegions, RegionEvent, RegionSpec, RegionSync } from './types';
 
 const UNSELECTED_ALPHA = '30';
 const SELECTED_ALPHA = '55';
@@ -16,18 +17,14 @@ export const createWavesurferRegionSync = (
   container: HTMLElement,
   colourFor: (speaker: number) => string,
 ): RegionSync => {
-  const listeners = new Set<(event: RegionEvent) => void>();
+  const events = createEmitter<RegionEvent>();
   const lastSynced = new Map<string, RegionSpec>();
   let prevSelectedId: string | null = null;
   let loopState: LoopState = IDLE;
   let loopOnSelectNow = false;
   let justClickedRegion = false;
 
-  const emit = (event: RegionEvent): void => {
-    for (const listener of listeners) {
-      listener(event);
-    }
-  };
+  const emit = events.emit;
 
   const regionById = (): Map<string, ReturnType<RegionsPlugin['getRegions']>[number]> => {
     return new Map(regions.getRegions().map((r) => [r.id, r]));
@@ -90,7 +87,7 @@ export const createWavesurferRegionSync = (
     dispatch(state, action);
   });
 
-  const sync = (state: DesiredState): void => {
+  const sync = (state: DesiredRegions): void => {
     loopOnSelectNow = state.loopOnSelect;
 
     const next = new Map(state.segments.map((s) => [s.id, s]));
@@ -141,13 +138,6 @@ export const createWavesurferRegionSync = (
     }
   };
 
-  const on = (listener: (event: RegionEvent) => void): (() => void) => {
-    listeners.add(listener);
-    return () => {
-      listeners.delete(listener);
-    };
-  };
-
   const mapClientXToTime = (clientX: number): number | null => {
     const duration = ws.getDuration();
     if (!duration) {
@@ -170,13 +160,13 @@ export const createWavesurferRegionSync = (
     unsubInteraction();
     unsubRegionUpdated();
     unsubPause();
-    listeners.clear();
+    events.clear();
   };
 
   return {
     clientXToTime: mapClientXToTime,
     dispose,
-    on,
+    on: events.on,
     sync,
   };
 };

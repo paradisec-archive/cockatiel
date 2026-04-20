@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { diffRegions } from '@/lib/region-sync/diff';
-import type { RegionSpec } from '@/lib/region-sync/types';
+import { diffRegions } from '@/lib/media-player/region-sync/diff';
+import type { RegionSpec } from '@/lib/media-player/region-sync/types';
 
 const r = (id: string, start: number, end: number, speaker = 0): RegionSpec => ({ end, id, speaker, start });
 

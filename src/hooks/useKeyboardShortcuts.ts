@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import type WaveSurfer from 'wavesurfer.js';
+import type { MediaPlayer } from '@/lib/media-player/types';
 import { rejectionMessage, SegmentInspect } from '@/lib/segment-ops';
 import { useAppStore } from '@/lib/store';
 import { isFormElement } from '@/lib/utils';
-import { zoomToSegment } from '@/lib/zoom';
 
 interface Shortcut {
   description: string;
@@ -26,9 +25,9 @@ export const SHORTCUTS: Shortcut[] = [
   { key: '?', description: 'Show keyboard shortcuts' },
 ];
 
-export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef: React.RefObject<HTMLDivElement | null> | null) => {
+export const useKeyboardShortcuts = (player: MediaPlayer | null) => {
   useEffect(() => {
-    if (!wavesurfer) {
+    if (!player) {
       return;
     }
 
@@ -58,14 +57,14 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef
       switch (e.code) {
         case 'Space':
           e.preventDefault();
-          wavesurfer.playPause();
+          player.playPause();
           break;
 
         case 'KeyS':
           if (store.selectedSegmentId) {
             e.preventDefault();
             const id = store.selectedSegmentId;
-            const time = wavesurfer.getCurrentTime();
+            const time = player.getState().currentTime;
             const reason = SegmentInspect.split(store, id, time);
             if (reason) {
               toast.warning(rejectionMessage(reason));
@@ -80,7 +79,7 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef
             const seg = store.segments.find((s) => s.id === store.selectedSegmentId);
             if (seg) {
               e.preventDefault();
-              zoomToSegment(wavesurfer, containerRef?.current?.clientWidth ?? 0, seg.start, seg.end);
+              player.zoomToWindow(seg.start, seg.end);
             }
           }
           break;
@@ -120,17 +119,17 @@ export const useKeyboardShortcuts = (wavesurfer: WaveSurfer | null, containerRef
 
         case 'ArrowLeft':
           e.preventDefault();
-          wavesurfer.skip(-5);
+          player.skip(-5);
           break;
 
         case 'ArrowRight':
           e.preventDefault();
-          wavesurfer.skip(5);
+          player.skip(5);
           break;
       }
     };
 
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [wavesurfer, containerRef]);
+  }, [player]);
 };

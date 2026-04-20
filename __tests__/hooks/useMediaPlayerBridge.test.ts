@@ -1,18 +1,11 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useWaveformSegments } from '@/hooks/useWaveformSegments';
+import { useMediaPlayerBridge } from '@/hooks/useMediaPlayerBridge';
 import { useAppStore } from '@/lib/store';
-import { createFakeRegionSync, type FakeRegionSync } from '../lib/region-sync/fake';
+import { createFakeMediaPlayer, type FakeMediaPlayer } from '../lib/media-player/fake';
 
-// Minimal stand-ins for the two wavesurfer objects — the fake factory ignores them.
-const fakeWs = {} as never;
-const fakeRegions = {} as never;
-
-const mountHook = (fake: FakeRegionSync) => {
-  const container = document.createElement('div');
-  document.body.appendChild(container);
-  const containerRef = { current: container };
-  return renderHook(() => useWaveformSegments(fakeWs, fakeRegions, containerRef, true, { factory: () => fake }));
+const mountHook = (fake: FakeMediaPlayer) => {
+  return renderHook(() => useMediaPlayerBridge(fake));
 };
 
 const seedSegments = (specs: { id?: string; start: number; end: number; speaker?: number; value?: string }[]): string[] => {
@@ -28,7 +21,7 @@ const seedSegments = (specs: { id?: string; start: number; end: number; speaker?
   return ids;
 };
 
-describe('useWaveformSegments', () => {
+describe('useMediaPlayerBridge', () => {
   beforeEach(() => {
     useAppStore.getState().reset();
     // Rebound validation needs a positive mediaDuration.
@@ -39,17 +32,17 @@ describe('useWaveformSegments', () => {
     useAppStore.getState().reset();
   });
 
-  it('syncs the initial store state to the port on mount', () => {
+  it('syncs the initial store state to the player on mount', () => {
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
-    const fake = createFakeRegionSync();
+    const fake = createFakeMediaPlayer();
     mountHook(fake);
 
-    expect(fake.lastState()).toMatchObject({ loopOnSelect: false, selectedId: null });
+    expect(fake.lastDesiredRegions()).toMatchObject({ loopOnSelect: false, selectedId: null });
     expect([...fake.regions().keys()]).toEqual([idA]);
   });
 
   it('propagates additions and removals from the store', () => {
-    const fake = createFakeRegionSync();
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
     mountHook(fake);
 
@@ -67,37 +60,35 @@ describe('useWaveformSegments', () => {
     expect([...fake.regions().keys()]).toEqual(['b']);
   });
 
-  it('does not re-sync when only segment text changes', () => {
-    const fake = createFakeRegionSync();
+  it('does not re-sync region bounds when only segment text changes', () => {
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([{ end: 2, start: 0, value: '' }]);
     mountHook(fake);
 
-    const firstSnapshot = fake.lastState();
+    const firstSnapshot = fake.lastDesiredRegions();
 
     act(() => {
       useAppStore.getState().updateSegmentText(idA, 'hello');
     });
 
-    // New snapshot will still be applied (because segments reference changes),
-    // but the diff produces no ops — assert the fake's regions haven't mutated.
     expect(fake.regions().get(idA)).toEqual({ end: 2, id: idA, speaker: 0, start: 0 });
-    expect(fake.lastState()).not.toBe(firstSnapshot); // sync called again…
-    expect(fake.lastState()?.segments[0]).toEqual({ end: 2, id: idA, speaker: 0, start: 0 }); // …with equivalent segment data
+    expect(fake.lastDesiredRegions()).not.toBe(firstSnapshot);
+    expect(fake.lastDesiredRegions()?.segments[0]).toEqual({ end: 2, id: idA, speaker: 0, start: 0 });
   });
 
-  it('translates selected events into selectSegment', () => {
-    const fake = createFakeRegionSync();
+  it('translates region-selected events into selectSegment', () => {
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
     mountHook(fake);
 
     act(() => {
-      fake.emit({ id: idA, type: 'selected' });
+      fake.emit({ id: idA, type: 'region-selected' });
     });
     expect(useAppStore.getState().selectedSegmentId).toBe(idA);
   });
 
-  it('translates cleared events into selectSegment(null)', () => {
-    const fake = createFakeRegionSync();
+  it('translates region-cleared events into selectSegment(null)', () => {
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
     mountHook(fake);
     act(() => {
@@ -106,18 +97,18 @@ describe('useWaveformSegments', () => {
     expect(useAppStore.getState().selectedSegmentId).toBe(idA);
 
     act(() => {
-      fake.emit({ type: 'cleared' });
+      fake.emit({ type: 'region-cleared' });
     });
     expect(useAppStore.getState().selectedSegmentId).toBeNull();
   });
 
-  it('translates bounds-changed events into updateSegmentBounds', () => {
-    const fake = createFakeRegionSync();
+  it('translates region-bounds-changed events into updateSegmentBounds', () => {
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
     mountHook(fake);
 
     act(() => {
-      fake.emit({ end: 3, id: idA, start: 0.5, type: 'bounds-changed' });
+      fake.emit({ end: 3, id: idA, start: 0.5, type: 'region-bounds-changed' });
     });
     const updated = useAppStore.getState().segments[0];
     expect(updated.start).toBe(0.5);
@@ -125,37 +116,25 @@ describe('useWaveformSegments', () => {
   });
 
   it('snaps a rejected drag back to the canonical bounds', () => {
-    const fake = createFakeRegionSync();
+    const fake = createFakeMediaPlayer();
     const [idA] = seedSegments([
       { end: 2, start: 0 },
       { end: 5, start: 3 },
     ]);
     mountHook(fake);
 
-    // Drag the first region past its right neighbour → overlap → store rejects.
     act(() => {
-      fake.emit({ end: 4, id: idA, start: 0, type: 'bounds-changed' });
+      fake.emit({ end: 4, id: idA, start: 0, type: 'region-bounds-changed' });
     });
 
-    // Store unchanged
     const unchanged = useAppStore.getState().segments.find((s) => s.id === idA);
     expect(unchanged?.end).toBe(2);
-    // Fake DOM snapped back
     expect(fake.regions().get(idA)).toEqual({ end: 2, id: idA, speaker: 0, start: 0 });
   });
 
-  it('disposes the port on unmount', () => {
-    const fake = createFakeRegionSync();
-    seedSegments([{ end: 2, start: 0 }]);
-    const { unmount } = mountHook(fake);
-    expect(fake.disposed()).toBe(false);
-    unmount();
-    expect(fake.disposed()).toBe(true);
-  });
-
-  it('getClickContext combines port.clientXToTime with findAtTime', () => {
-    const fake = createFakeRegionSync();
-    fake.setClientXToTime(() => 1.0); // always return time=1.0
+  it('getClickContext combines player.clientXToTime with findAtTime', () => {
+    const fake = createFakeMediaPlayer();
+    fake.setClientXToTime(() => 1.0);
     const [idA] = seedSegments([{ end: 2, start: 0 }]);
     const { result } = mountHook(fake);
 
@@ -164,22 +143,22 @@ describe('useWaveformSegments', () => {
   });
 
   it('getClickContext returns null when clientXToTime does', () => {
-    const fake = createFakeRegionSync();
+    const fake = createFakeMediaPlayer();
     fake.setClientXToTime(() => null);
     seedSegments([{ end: 2, start: 0 }]);
     const { result } = mountHook(fake);
     expect(result.current.getClickContext({ clientX: 0 } as React.MouseEvent)).toBeNull();
   });
 
-  it('reflects loopOnSelect changes in the port without requiring a re-click', () => {
-    const fake = createFakeRegionSync();
+  it('reflects loopOnSelect changes in the player without requiring a re-click', () => {
+    const fake = createFakeMediaPlayer();
     seedSegments([{ end: 2, start: 0 }]);
     mountHook(fake);
 
-    expect(fake.lastState()?.loopOnSelect).toBe(false);
+    expect(fake.lastDesiredRegions()?.loopOnSelect).toBe(false);
     act(() => {
       useAppStore.getState().setLoopOnSelect(true);
     });
-    expect(fake.lastState()?.loopOnSelect).toBe(true);
+    expect(fake.lastDesiredRegions()?.loopOnSelect).toBe(true);
   });
 });

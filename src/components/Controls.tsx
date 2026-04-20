@@ -2,27 +2,40 @@ import { PauseIcon, PlayIcon } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TimeDisplay } from './TimeDisplay';
-import { useWavesurferContext } from './Waveform';
+import { useMediaPlayer } from './Waveform';
 
 export const Controls = () => {
-  const { wavesurfer, isReady } = useWavesurferContext();
+  const player = useMediaPlayer();
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (!wavesurfer) {
+    if (!player) {
+      setIsPlaying(false);
+      setIsReady(false);
       return;
     }
-    const unsubPlay = wavesurfer.on('play', () => setIsPlaying(true));
-    const unsubPause = wavesurfer.on('pause', () => setIsPlaying(false));
-    return () => {
-      unsubPlay();
-      unsubPause();
-    };
-  }, [wavesurfer]);
+    const snapshot = player.getState();
+    setIsPlaying(snapshot.isPlaying);
+    setIsReady(snapshot.isReady);
+    return player.on((event) => {
+      switch (event.type) {
+        case 'ready':
+          setIsReady(true);
+          break;
+        case 'play':
+          setIsPlaying(true);
+          break;
+        case 'pause':
+          setIsPlaying(false);
+          break;
+      }
+    });
+  }, [player]);
 
   const handlePlayPause = useCallback(() => {
-    wavesurfer?.playPause();
-  }, [wavesurfer]);
+    player?.playPause();
+  }, [player]);
 
   return (
     <div className="flex items-center gap-2">
