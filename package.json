@@ -13,6 +13,7 @@
     "lint:types": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:ui": "vitest --ui",
     "download:wasm": "bash scripts/download-wasm-vad.sh"
   },
   "dependencies": {
@@ -45,6 +46,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/ui": "^4.1.4",
     "jsdom": "^29.0.2",
     "knip": "^6.4.1",
     "lefthook": "^2.1.6",
