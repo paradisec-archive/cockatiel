@@ -1,5 +1,7 @@
-import { getSpeakerName } from '../constants';
-import type { ExportData } from './types';
+import { getSpeakerName } from '../../constants';
+import type { Annotation } from '../../store';
+import { escapeTextGridQuotes } from '../tabular';
+import type { ExportData, Exporter } from '../types';
 
 interface Interval {
   text: string;
@@ -7,8 +9,7 @@ interface Interval {
   xmin: number;
 }
 
-/** Build contiguous intervals from segments, filling gaps with empty intervals. */
-const buildIntervals = (data: ExportData, textFn: (seg: ExportData['segments'][0]) => string): Interval[] => {
+const buildIntervals = (data: ExportData, textFn: (seg: Annotation) => string): Interval[] => {
   const intervals: Interval[] = [];
   let cursor = 0;
 
@@ -27,10 +28,6 @@ const buildIntervals = (data: ExportData, textFn: (seg: ExportData['segments'][0
   return intervals;
 };
 
-const escapeTextGrid = (text: string): string => {
-  return text.replace(/"/g, '""');
-};
-
 const writeIntervalTier = (lines: string[], name: string, intervals: Interval[], duration: number): void => {
   lines.push(`        class = "IntervalTier"`);
   lines.push(`        name = "${name}"`);
@@ -43,11 +40,11 @@ const writeIntervalTier = (lines: string[], name: string, intervals: Interval[],
     lines.push(`        intervals [${i + 1}]:`);
     lines.push(`            xmin = ${iv.xmin}`);
     lines.push(`            xmax = ${iv.xmax}`);
-    lines.push(`            text = "${escapeTextGrid(iv.text)}"`);
+    lines.push(`            text = "${escapeTextGridQuotes(iv.text)}"`);
   }
 };
 
-export const generateTextGrid = (data: ExportData): string => {
+const generate = (data: ExportData): string => {
   const transcriptIntervals = buildIntervals(data, (seg) => seg.value);
   const speakerIntervals = buildIntervals(data, (seg) => getSpeakerName(data.speakerNames, seg.speaker));
 
@@ -68,4 +65,12 @@ export const generateTextGrid = (data: ExportData): string => {
   writeIntervalTier(lines, 'Speaker', speakerIntervals, data.mediaDuration);
 
   return lines.join('\n');
+};
+
+export const textgrid: Exporter = {
+  id: 'textgrid',
+  label: 'Praat TextGrid',
+  ext: '.TextGrid',
+  mime: 'text/plain',
+  generate,
 };

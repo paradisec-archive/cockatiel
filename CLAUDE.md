@@ -9,7 +9,7 @@ Prefer the project's `pnpm` scripts over raw tool invocations:
 - `pnpm lint:knip` — unused exports / dependencies
 - `pnpm test` — Vitest (one-shot)
 - `pnpm test:watch` — Vitest (watch)
-- `pnpm dev` — Vite dev server
+- `pnpm dev` — Vite dev server (NEVER offer to run this — the dev server is always already running)
 - `pnpm build` — production build
 
 ## Imports

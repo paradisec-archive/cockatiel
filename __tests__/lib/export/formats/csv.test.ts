@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { generateCsv } from '@/lib/export/csv-export';
+import { csv } from '@/lib/export/formats/csv';
 import type { ExportData } from '@/lib/export/types';
 
-const testData: ExportData = {
+const data: ExportData = {
   mediaDuration: 10,
   mediaFileName: 'test.wav',
   segments: [
@@ -12,20 +12,13 @@ const testData: ExportData = {
   speakerNames: ['Alice', 'Bob'],
 };
 
-describe('generateCsv', () => {
-  it('generates CSV with header and rows', () => {
-    const csv = generateCsv(testData);
-    const lines = csv.split('\n');
+describe('csv exporter', () => {
+  it('generates header and rows in the expected shape', () => {
+    const out = csv.generate(data);
+    const lines = out.split('\n');
 
     expect(lines[0]).toBe('Start,End,Speaker,Text');
     expect(lines[1]).toBe('0.000,2.500,Alice,hello world');
-  });
-
-  it('escapes values containing commas or quotes', () => {
-    const csv = generateCsv(testData);
-    const lines = csv.split('\n');
-
-    // "goodbye, "world"" should be escaped
-    expect(lines[2]).toContain('"goodbye, ""world"""');
+    expect(lines[2]).toBe('3.000,5.000,Bob,"goodbye, ""world"""');
   });
 });
