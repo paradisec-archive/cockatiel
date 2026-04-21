@@ -84,10 +84,6 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
     }
   };
 
-  // Zoom echo suppression — swallow the `zoom` event wavesurfer fires as a direct
-  // result of our own setZoom() call, so the slider doesn't round-trip back on itself.
-  let programmaticZoomPending = false;
-
   // Region-sync calls into the regions plugin, which needs a decoded audio duration
   // to position regions. syncRegions before `ready` is buffered and flushed here.
   let pendingRegions: DesiredRegions | null = null;
@@ -122,10 +118,6 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
 
   const unsubZoom = ws.on('zoom', (pxPerSec: number) => {
     state.pxPerSec = pxPerSec;
-    if (programmaticZoomPending) {
-      programmaticZoomPending = false;
-      return;
-    }
     emit({ minPxPerSec: state.minPxPerSec, pxPerSec, type: 'zoom' });
   });
 
@@ -200,7 +192,6 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
       ws.setTime(time);
     },
     setZoom: (pxPerSec) => {
-      programmaticZoomPending = true;
       ws.zoom(pxPerSec);
     },
     skip: (delta) => {
@@ -218,7 +209,6 @@ export const createWavesurferMediaPlayer = (container: HTMLElement, colourFor: (
       if (!window) {
         return;
       }
-      programmaticZoomPending = true;
       ws.zoom(window.pxPerSec);
       ws.setScroll(window.scroll);
     },

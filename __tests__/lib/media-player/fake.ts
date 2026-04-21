@@ -87,6 +87,7 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
     },
     setZoom: (pxPerSec) => {
       state.pxPerSec = pxPerSec;
+      emit({ minPxPerSec: state.minPxPerSec, pxPerSec, type: 'zoom' });
     },
     simulateBoundsChanged: (id, start, end) => {
       emit({ end, id, start, type: 'region-bounds-changed' });
@@ -116,6 +117,7 @@ export const createFakeMediaPlayer = (options: FakeMediaPlayerOptions = {}): Fak
       const window = computeZoomWindow(containerWidth, state.duration, start, end);
       if (window) {
         state.pxPerSec = window.pxPerSec;
+        emit({ minPxPerSec: state.minPxPerSec, pxPerSec: window.pxPerSec, type: 'zoom' });
       }
     },
   };

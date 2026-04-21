@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { MediaPlayerEvent } from '@/lib/media-player/types';
 import { createFakeMediaPlayer } from './fake';
 
 describe('media-player wiring (via fake)', () => {
@@ -40,6 +41,24 @@ describe('media-player wiring (via fake)', () => {
       player.setZoom(100);
       player.zoomToWindow(5, 5);
       expect(player.getState().pxPerSec).toBe(100);
+    });
+
+    it('setZoom notifies subscribers with a zoom event', () => {
+      const player = createFakeMediaPlayer({ containerWidth: 500 });
+      player.simulateReady(60);
+      const listener = vi.fn<(event: MediaPlayerEvent) => void>();
+      player.on(listener);
+      player.setZoom(120);
+      expect(listener).toHaveBeenCalledWith({ minPxPerSec: 500 / 60, pxPerSec: 120, type: 'zoom' });
+    });
+
+    it('zoomToWindow notifies subscribers with a zoom event', () => {
+      const player = createFakeMediaPlayer({ containerWidth: 500 });
+      player.simulateReady(60);
+      const listener = vi.fn<(event: MediaPlayerEvent) => void>();
+      player.on(listener);
+      player.zoomToWindow(20, 30);
+      expect(listener).toHaveBeenCalledWith({ minPxPerSec: 500 / 60, pxPerSec: 500 / 12, type: 'zoom' });
     });
   });
 
