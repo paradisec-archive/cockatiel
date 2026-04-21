@@ -1,4 +1,5 @@
 import { useAppStore } from '@/lib/store';
+import { ensurePersistentStorage } from './grant';
 import { type SessionPayload, upsertSession } from './storage';
 
 export const SAVE_DEBOUNCE_MS = 500;
@@ -10,6 +11,7 @@ const pickPayload = (state: ReturnType<typeof useAppStore.getState>): SessionPay
   mediaFileName: state.mediaFileName,
   segments: state.segments,
   speakerNames: state.speakerNames,
+  title: state.title,
   vadConfig: state.vadConfig,
 });
 
@@ -36,9 +38,11 @@ export const startAutoSave = (): (() => void) => {
     }
     timeoutId = setTimeout(() => {
       timeoutId = null;
-      upsertSession(payload).catch((err) => {
-        console.error('Session save failed:', err);
-      });
+      upsertSession(payload)
+        .then(() => ensurePersistentStorage())
+        .catch((err) => {
+          console.error('Session save failed:', err);
+        });
     }, SAVE_DEBOUNCE_MS);
   });
 

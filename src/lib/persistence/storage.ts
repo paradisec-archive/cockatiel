@@ -1,4 +1,5 @@
 import { createStore, del, entries, get, set } from 'idb-keyval';
+import { titleFromFileName } from '../utils';
 import { SCHEMA_VERSION, type SessionSummary, type StoredSession } from './types';
 
 const sessionsStore = createStore('cockatiel', 'sessions');
@@ -40,6 +41,19 @@ export const loadMostRecentSession = async (): Promise<StoredSession | undefined
   return best;
 };
 
+const summariseTranscript = (segments: StoredSession['segments']): { transcribedSegmentCount: number; wordCount: number } => {
+  let transcribedSegmentCount = 0;
+  let wordCount = 0;
+  for (const seg of segments) {
+    const trimmed = seg.value.trim();
+    if (trimmed) {
+      transcribedSegmentCount += 1;
+      wordCount += trimmed.split(/\s+/).length;
+    }
+  }
+  return { transcribedSegmentCount, wordCount };
+};
+
 export const listSessions = async (): Promise<SessionSummary[]> => {
   const all = await entries<string, StoredSession>(sessionsStore);
   return all
@@ -49,7 +63,10 @@ export const listSessions = async (): Promise<SessionSummary[]> => {
       mediaDuration: s.mediaDuration,
       mediaFileName: s.mediaFileName,
       segmentCount: s.segments.length,
+      speakerCount: s.speakerNames.length,
+      title: s.title || titleFromFileName(s.mediaFileName),
       updatedAt: s.updatedAt,
+      ...summariseTranscript(s.segments),
     }))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 };

@@ -7,6 +7,7 @@ export const makePayload = (overrides: Partial<SessionPayload> = {}): SessionPay
   mediaFileName: 'test.wav',
   segments: [{ end: 1, id: 's1', speaker: 0, start: 0, value: 'hello' }],
   speakerNames: ['Speaker 1'],
+  title: 'test',
   vadConfig: { ...DEFAULT_VAD_CONFIG },
   ...overrides,
 });

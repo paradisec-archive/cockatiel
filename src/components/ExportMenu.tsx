@@ -2,22 +2,19 @@ import { useCallback } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { downloadExport, type ExportFormatId, listExportFormats, renderExport } from '@/lib/export';
 import { useAppStore } from '@/lib/store';
+import { titleFromFileName } from '@/lib/utils';
 
 const EXPORT_FORMATS = listExportFormats();
 
-const baseName = (fileName: string): string => {
-  return fileName.replace(/\.[^.]+$/, '') || 'transcription';
-};
-
 const getExportData = () => {
-  const { mediaDuration, mediaFileName, segments, speakerNames } = useAppStore.getState();
-  return { mediaDuration, mediaFileName, segments, speakerNames };
+  const { mediaDuration, mediaFileName, segments, speakerNames, title } = useAppStore.getState();
+  return { mediaDuration, mediaFileName, segments, speakerNames, title };
 };
 
 export const ExportMenu = () => {
   const mediaFileName = useAppStore((s) => s.mediaFileName);
   const hasSegments = useAppStore((s) => s.segments.length > 0);
-  const base = baseName(mediaFileName);
+  const base = titleFromFileName(mediaFileName) || 'transcription';
 
   const handleExport = useCallback(
     (id: ExportFormatId) => {

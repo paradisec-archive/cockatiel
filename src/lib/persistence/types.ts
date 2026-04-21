@@ -17,5 +17,9 @@ export interface SessionSummary {
   mediaDuration: number;
   mediaFileName: string;
   segmentCount: number;
+  speakerCount: number;
+  title: string;
+  transcribedSegmentCount: number;
   updatedAt: number;
+  wordCount: number;
 }

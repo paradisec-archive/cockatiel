@@ -5,6 +5,7 @@ export interface ExportData {
   mediaFileName: string;
   segments: Annotation[];
   speakerNames: string[];
+  title: string;
 }
 
 export type ExportFormatId = 'eaf' | 'srt' | 'textgrid' | 'csv' | 'text';

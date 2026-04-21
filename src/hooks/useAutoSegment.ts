@@ -4,7 +4,7 @@ import { resampleTo16kMono } from '@/lib/audio-resample';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
 import { loadSession } from '@/lib/persistence/storage';
 import { useAppStore } from '@/lib/store';
-import { getErrorMessage, isAbortError, pluralizeSegment } from '@/lib/utils';
+import { getErrorMessage, isAbortError, pluralizeSegment, titleFromFileName } from '@/lib/utils';
 import { segment } from '@/lib/vad';
 
 export const useAutoSegment = () => {
@@ -80,6 +80,7 @@ export const useAutoSegment = () => {
       }
 
       store.setMediaFile(file.name, originalBuffer.duration);
+      store.setTitle(titleFromFileName(file.name));
       store.setFingerprint(fingerprint);
       if (handle) {
         store.setFileHandle(handle);

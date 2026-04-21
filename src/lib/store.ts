@@ -4,6 +4,7 @@ import { deleteSession } from './persistence/storage';
 import type { StoredSession } from './persistence/types';
 import type { Annotation, SegmentCtx } from './segment-ops';
 import { SegmentInspect, SegmentOps } from './segment-ops';
+import { titleFromFileName } from './utils';
 import type { VadConfig, VadSegment } from './vad';
 
 type AppPhase = 'workbench' | 'upload' | 'processing' | 'ready';
@@ -21,6 +22,7 @@ interface AppState {
   selectedSegmentId: string | null;
   speakerNames: string[];
   statusMessage: string;
+  title: string;
   vadConfig: VadConfig;
 
   assignAllToSpeaker: (speakerIndex: number) => void;
@@ -47,6 +49,7 @@ interface AppState {
   setSpeakerCount: (count: number) => void;
   setSpeakerName: (index: number, name: string) => void;
   setStatus: (message: string) => void;
+  setTitle: (title: string) => void;
   setVadConfig: (config: Partial<VadConfig>) => void;
   updateSegmentBounds: (id: string, start: number, end: number) => void;
   updateSegmentText: (id: string, value: string) => void;
@@ -72,6 +75,7 @@ const initialState = {
   selectedSegmentId: null as string | null,
   speakerNames: ['Speaker 1'],
   statusMessage: '',
+  title: '',
   vadConfig: { ...DEFAULT_VAD_CONFIG },
 };
 
@@ -84,6 +88,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFingerprint: (fingerprint) => set({ fingerprint }),
   setStatus: (message) => set({ statusMessage: message }),
   setProgress: (fraction) => set({ processingProgress: fraction }),
+  setTitle: (title) => set({ title }),
 
   hydrateFromStoredSession: (session) =>
     set({
@@ -93,6 +98,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       mediaFileName: session.mediaFileName,
       segments: session.segments,
       speakerNames: session.speakerNames,
+      title: session.title || titleFromFileName(session.mediaFileName),
       vadConfig: session.vadConfig,
     }),
 

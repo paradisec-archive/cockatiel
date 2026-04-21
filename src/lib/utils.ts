@@ -15,3 +15,5 @@ export const isAbortError = (error: unknown): boolean => error instanceof DOMExc
 export const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error');
 
 export const pluralizeSegment = (count: number): string => `${count} ${count === 1 ? 'segment' : 'segments'}`;
+
+export const titleFromFileName = (fileName: string): string => fileName.replace(/\.[^.]+$/, '') || fileName;
