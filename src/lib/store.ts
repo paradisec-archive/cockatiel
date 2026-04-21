@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
+import type { StoredSession } from './persistence/types';
 import type { Annotation, SegmentCtx } from './segment-ops';
 import { SegmentInspect, SegmentOps } from './segment-ops';
 import type { VadConfig, VadSegment } from './vad';
@@ -9,6 +10,7 @@ type AppPhase = 'upload' | 'processing' | 'ready';
 interface AppState {
   appPhase: AppPhase;
   defaultSpeaker: number;
+  fingerprint: string;
   loopOnSelect: boolean;
   mediaDuration: number;
   mediaFileName: string;
@@ -24,6 +26,7 @@ interface AppState {
   clearSegments: () => void;
   createSegment: (start: number, end: number, speakerIndex: number) => string | null;
   deleteSegment: (id: string) => void;
+  hydrateFromStoredSession: (session: StoredSession) => void;
   loadSegments: (segments: VadSegment[]) => void;
   mergeWithNext: (id: string) => void;
   mergeWithPrevious: (id: string) => void;
@@ -34,6 +37,7 @@ interface AppState {
   splitSegment: (id: string, atTime: number) => void;
   setAppPhase: (phase: AppPhase) => void;
   setDefaultSpeaker: (index: number) => void;
+  setFingerprint: (fingerprint: string) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
   setSpeakerCount: (count: number) => void;
@@ -54,6 +58,7 @@ const makeCtx = (state: AppState): SegmentCtx => ({
 const initialState = {
   appPhase: 'upload' as AppPhase,
   defaultSpeaker: 0,
+  fingerprint: '',
   loopOnSelect: false,
   mediaDuration: 0,
   mediaFileName: '',
@@ -70,8 +75,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setMediaFile: (name, duration) => set({ mediaFileName: name, mediaDuration: duration }),
   setAppPhase: (phase) => set({ appPhase: phase }),
+  setFingerprint: (fingerprint) => set({ fingerprint }),
   setStatus: (message) => set({ statusMessage: message }),
   setProgress: (fraction) => set({ processingProgress: fraction }),
+
+  hydrateFromStoredSession: (session) =>
+    set({
+      fingerprint: session.fingerprint,
+      mediaDuration: session.mediaDuration,
+      mediaFileName: session.mediaFileName,
+      segments: session.segments,
+      speakerNames: session.speakerNames,
+      vadConfig: session.vadConfig,
+    }),
 
   loadSegments: (vadSegments) => {
     const { defaultSpeaker } = get();

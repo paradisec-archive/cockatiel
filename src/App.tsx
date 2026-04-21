@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { AnnotationTier } from '@/components/AnnotationTier';
 import { Controls } from '@/components/Controls';
 import { DropZone } from '@/components/DropZone';
@@ -8,6 +8,7 @@ import { Header } from '@/components/Header';
 import { HelpButton } from '@/components/HelpButton';
 import { KeyboardHelp } from '@/components/KeyboardHelp';
 import { LoopToggle } from '@/components/LoopToggle';
+import { RestoreBanner } from '@/components/RestoreBanner';
 import { SpeakerPanel } from '@/components/SpeakerPanel';
 import { StatusBar } from '@/components/StatusBar';
 import { Toaster } from '@/components/ui/sonner';
@@ -16,6 +17,8 @@ import { type TimelineViewport, useMediaPlayer, Waveform } from '@/components/Wa
 import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { loadMostRecentSession } from '@/lib/persistence/storage';
+import { startAutoSave } from '@/lib/persistence/subscribe';
 import { useAppStore } from '@/lib/store';
 
 const defaultViewport: TimelineViewport = {
@@ -36,6 +39,26 @@ const App = () => {
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
   const [helpOpen, setHelpOpen] = useState(false);
 
+  useEffect(() => {
+    let alive = true;
+    const stopAutoSave = startAutoSave();
+    (async () => {
+      const session = await loadMostRecentSession();
+      if (!alive || !session) {
+        return;
+      }
+      const state = useAppStore.getState();
+      if (state.fingerprint || state.appPhase !== 'upload') {
+        return;
+      }
+      state.hydrateFromStoredSession(session);
+    })();
+    return () => {
+      alive = false;
+      stopAutoSave();
+    };
+  }, []);
+
   const handleResegment = useCallback(() => {
     const file = audioFileRef.current;
     if (file) {
@@ -48,7 +71,12 @@ const App = () => {
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 py-6">
-        {appPhase === 'upload' && <DropZone onFileSelected={processFile} />}
+        {appPhase === 'upload' && (
+          <>
+            <RestoreBanner />
+            <DropZone onFileSelected={processFile} />
+          </>
+        )}
 
         {appPhase === 'processing' && <StatusBar />}
 
