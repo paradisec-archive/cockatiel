@@ -9,6 +9,7 @@ describe('textgrid exporter', () => {
       mediaFileName: 'test.wav',
       segments: [{ end: 2, id: 'a1', speaker: 0, start: 0, value: 'hello' }],
       speakerNames: ['Alice'],
+      title: 'test',
     };
     const out = textgrid.generate(data);
     expect(out).toContain('File type = "ooTextFile"');
@@ -26,6 +27,7 @@ describe('textgrid exporter', () => {
         { end: 6, id: 'a2', speaker: 0, start: 4, value: 'world' },
       ],
       speakerNames: ['Alice'],
+      title: 'test',
     };
     const out = textgrid.generate(data);
     expect(out.match(/intervals: size = 5/g)).toHaveLength(2);
@@ -40,6 +42,7 @@ describe('textgrid exporter', () => {
       mediaFileName: 'test.wav',
       segments: [{ end: 2, id: 'a1', speaker: 0, start: 0, value: 'say "hi"' }],
       speakerNames: ['Alice'],
+      title: 'test',
     };
     const out = textgrid.generate(data);
     expect(out).toContain('text = "say ""hi"""');

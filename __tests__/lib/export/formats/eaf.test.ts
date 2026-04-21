@@ -10,6 +10,7 @@ const standardData: ExportData = {
     { end: 5.0, id: 'a2', speaker: 1, start: 3.0, value: 'goodbye' },
   ],
   speakerNames: ['Alice', 'Bob'],
+  title: 'test',
 };
 
 const ISO_8601_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;

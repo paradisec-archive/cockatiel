@@ -10,6 +10,7 @@ const data: ExportData = {
     { end: 5.0, id: 'a2', speaker: 1, start: 3.0, value: 'goodbye' },
   ],
   speakerNames: ['Alice', 'Bob'],
+  title: 'test',
 };
 
 const expected: Record<ExportFormatId, { ext: string; mime: string }> = {

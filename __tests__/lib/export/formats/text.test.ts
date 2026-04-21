@@ -10,6 +10,7 @@ const data: ExportData = {
     { end: 65.7, id: 'a2', speaker: 1, start: 60.5, value: 'goodbye world' },
   ],
   speakerNames: ['Alice', 'Bob'],
+  title: 'test',
 };
 
 describe('text exporter', () => {

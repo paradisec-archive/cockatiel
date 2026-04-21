@@ -10,6 +10,7 @@ const data: ExportData = {
     { end: 5.123, id: 'a2', speaker: 1, start: 3.0, value: 'goodbye world' },
   ],
   speakerNames: ['Alice', 'Bob'],
+  title: 'test',
 };
 
 describe('srt exporter', () => {

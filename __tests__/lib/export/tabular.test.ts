@@ -10,6 +10,7 @@ const data: ExportData = {
     { end: 5.0, id: 'a2', speaker: 1, start: 3.0, value: 'world' },
   ],
   speakerNames: ['Alice', 'Bob'],
+  title: 'test',
 };
 
 describe('time formatters', () => {
@@ -122,6 +123,7 @@ describe('tabular', () => {
       ...data,
       segments: [{ end: 1, id: 'x', speaker: 5, start: 0, value: 't' }],
       speakerNames: ['Alice'],
+      title: 'test',
     };
     const out = tabular(sparse, {
       row: ({ speakerName }) => speakerName,
