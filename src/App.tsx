@@ -73,7 +73,7 @@ const App = () => {
       <main className="mx-auto max-w-6xl px-4 py-6">
         {appPhase === 'upload' && (
           <>
-            <RestoreBanner />
+            <RestoreBanner onResume={processFile} />
             <DropZone onFileSelected={processFile} />
           </>
         )}

@@ -3,7 +3,9 @@
   "tags": ["-lintignore"],
   "ignore": [
     // shadcn/ui component library
-    "src/components/ui/**"
+    "src/components/ui/**",
+    // Ambient type augmentations (global `declare` blocks aren't reachable via imports)
+    "**/*.d.ts"
   ],
   "commitlint": {
     "entry": ["commitlint.config.ts"]

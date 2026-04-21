@@ -4,6 +4,7 @@ import { type SessionPayload, upsertSession } from './storage';
 export const SAVE_DEBOUNCE_MS = 500;
 
 const pickPayload = (state: ReturnType<typeof useAppStore.getState>): SessionPayload => ({
+  ...(state.fileHandle ? { fileHandle: state.fileHandle } : {}),
   fingerprint: state.fingerprint,
   mediaDuration: state.mediaDuration,
   mediaFileName: state.mediaFileName,
@@ -14,6 +15,9 @@ const pickPayload = (state: ReturnType<typeof useAppStore.getState>): SessionPay
 
 export const startAutoSave = (): (() => void) => {
   let lastKey = '';
+  // Tracked separately: FileSystemFileHandle has no enumerable own properties,
+  // so JSON.stringify renders it as `{}` and can't distinguish two handles.
+  let lastHandle: FileSystemFileHandle | null = null;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
   const unsubscribe = useAppStore.subscribe((state) => {
@@ -22,10 +26,11 @@ export const startAutoSave = (): (() => void) => {
     }
     const payload = pickPayload(state);
     const key = JSON.stringify(payload);
-    if (key === lastKey) {
+    if (key === lastKey && state.fileHandle === lastHandle) {
       return;
     }
     lastKey = key;
+    lastHandle = state.fileHandle;
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
     }

@@ -10,6 +10,7 @@ type AppPhase = 'upload' | 'processing' | 'ready';
 interface AppState {
   appPhase: AppPhase;
   defaultSpeaker: number;
+  fileHandle: FileSystemFileHandle | null;
   fingerprint: string;
   loopOnSelect: boolean;
   mediaDuration: number;
@@ -37,6 +38,7 @@ interface AppState {
   splitSegment: (id: string, atTime: number) => void;
   setAppPhase: (phase: AppPhase) => void;
   setDefaultSpeaker: (index: number) => void;
+  setFileHandle: (handle: FileSystemFileHandle | null) => void;
   setFingerprint: (fingerprint: string) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
@@ -58,6 +60,7 @@ const makeCtx = (state: AppState): SegmentCtx => ({
 const initialState = {
   appPhase: 'upload' as AppPhase,
   defaultSpeaker: 0,
+  fileHandle: null as FileSystemFileHandle | null,
   fingerprint: '',
   loopOnSelect: false,
   mediaDuration: 0,
@@ -75,12 +78,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   setMediaFile: (name, duration) => set({ mediaFileName: name, mediaDuration: duration }),
   setAppPhase: (phase) => set({ appPhase: phase }),
+  setFileHandle: (fileHandle) => set({ fileHandle }),
   setFingerprint: (fingerprint) => set({ fingerprint }),
   setStatus: (message) => set({ statusMessage: message }),
   setProgress: (fraction) => set({ processingProgress: fraction }),
 
   hydrateFromStoredSession: (session) =>
     set({
+      fileHandle: session.fileHandle ?? null,
       fingerprint: session.fingerprint,
       mediaDuration: session.mediaDuration,
       mediaFileName: session.mediaFileName,

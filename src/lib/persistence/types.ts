@@ -5,6 +5,7 @@ export const SCHEMA_VERSION = 1 as const;
 
 export interface StoredSession extends ExportData {
   createdAt: number;
+  fileHandle?: FileSystemFileHandle;
   fingerprint: string;
   schemaVersion: typeof SCHEMA_VERSION;
   updatedAt: number;

@@ -4,15 +4,14 @@ import { resampleTo16kMono } from '@/lib/audio-resample';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
 import { loadSession } from '@/lib/persistence/storage';
 import { useAppStore } from '@/lib/store';
+import { getErrorMessage, isAbortError } from '@/lib/utils';
 import { segment } from '@/lib/vad';
-
-const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
 
 export const useAutoSegment = () => {
   const audioFileRef = useRef<File | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const processFile = useCallback(async (file: File) => {
+  const processFile = useCallback(async (file: File, handle?: FileSystemFileHandle) => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -49,6 +48,9 @@ export const useAutoSegment = () => {
 
       if (existing) {
         store.hydrateFromStoredSession(existing);
+        if (handle) {
+          store.setFileHandle(handle);
+        }
         if (file.name !== existing.mediaFileName) {
           store.setMediaFile(file.name, existing.mediaDuration);
         }
@@ -77,6 +79,9 @@ export const useAutoSegment = () => {
 
       store.setMediaFile(file.name, originalBuffer.duration);
       store.setFingerprint(fingerprint);
+      if (handle) {
+        store.setFileHandle(handle);
+      }
       store.setProgress(0.1);
 
       const samples16k = await resampleTo16kMono(originalBuffer);
@@ -99,8 +104,7 @@ export const useAutoSegment = () => {
         return;
       }
       console.error('Auto-segment failed:', error);
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      toast.error(`Auto-segment failed: ${message}`);
+      toast.error(`Auto-segment failed: ${getErrorMessage(error)}`);
       store.setAppPhase('upload');
     }
   }, []);

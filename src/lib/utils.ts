@@ -9,3 +9,7 @@ export const isFormElement = (target: EventTarget | null): boolean => {
   const tag = (target as HTMLElement)?.tagName;
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 };
+
+export const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
+
+export const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error');
