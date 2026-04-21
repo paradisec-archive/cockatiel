@@ -85,11 +85,13 @@ export const loadModule = (onStatus?: StatusListener): Promise<any> => {
     return loadPromise;
   }
 
+  const wasmBase = `${import.meta.env.BASE_URL}wasm/vad/`;
+
   loadPromise = new Promise((resolve, reject) => {
     // biome-ignore lint/suspicious/noExplicitAny: Emscripten Module pattern
     const Module: any = {};
 
-    Module.locateFile = (path: string) => `/wasm/vad/${path}`;
+    Module.locateFile = (path: string) => `${wasmBase}${path}`;
 
     Module.setStatus = (status: string) => {
       if (!status) {
@@ -119,8 +121,8 @@ export const loadModule = (onStatus?: StatusListener): Promise<any> => {
     window.Module = Module;
 
     (async () => {
-      await loadScript('/wasm/vad/sherpa-onnx-vad.js');
-      await loadScript('/wasm/vad/sherpa-onnx-wasm-main-vad.js');
+      await loadScript(`${wasmBase}sherpa-onnx-vad.js`);
+      await loadScript(`${wasmBase}sherpa-onnx-wasm-main-vad.js`);
     })().catch(reject);
   });
 
