@@ -1,21 +1,11 @@
 import 'fake-indexeddb/auto';
 import { clear, createStore } from 'idb-keyval';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_VAD_CONFIG } from '@/lib/constants';
-import { deleteSession, listSessions, loadMostRecentSession, loadSession, type SessionPayload, upsertSession } from '@/lib/persistence/storage';
+import { deleteSession, listSessions, loadMostRecentSession, loadSession, upsertSession } from '@/lib/persistence/storage';
 import { SCHEMA_VERSION } from '@/lib/persistence/types';
+import { makePayload as payload } from './test-util';
 
 const testStore = createStore('cockatiel', 'sessions');
-
-const payload = (overrides: Partial<SessionPayload> = {}): SessionPayload => ({
-  fingerprint: 'deadbeef',
-  mediaDuration: 60,
-  mediaFileName: 'test.wav',
-  segments: [{ end: 1, id: 's1', speaker: 0, start: 0, value: 'hello' }],
-  speakerNames: ['Speaker 1'],
-  vadConfig: { ...DEFAULT_VAD_CONFIG },
-  ...overrides,
-});
 
 describe('persistence/storage', () => {
   beforeEach(async () => {

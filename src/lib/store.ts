@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { DEFAULT_VAD_CONFIG, MAX_SPEAKERS } from './constants';
+import { deleteSession } from './persistence/storage';
 import type { StoredSession } from './persistence/types';
 import type { Annotation, SegmentCtx } from './segment-ops';
 import { SegmentInspect, SegmentOps } from './segment-ops';
 import type { VadConfig, VadSegment } from './vad';
 
-type AppPhase = 'upload' | 'processing' | 'ready';
+type AppPhase = 'workbench' | 'upload' | 'processing' | 'ready';
 
 interface AppState {
   appPhase: AppPhase;
@@ -27,6 +28,7 @@ interface AppState {
   clearSegments: () => void;
   createSegment: (start: number, end: number, speakerIndex: number) => string | null;
   deleteSegment: (id: string) => void;
+  discardSession: (fingerprint: string) => Promise<void>;
   hydrateFromStoredSession: (session: StoredSession) => void;
   loadSegments: (segments: VadSegment[]) => void;
   mergeWithNext: (id: string) => void;
@@ -58,7 +60,7 @@ const makeCtx = (state: AppState): SegmentCtx => ({
 });
 
 const initialState = {
-  appPhase: 'upload' as AppPhase,
+  appPhase: 'workbench' as AppPhase,
   defaultSpeaker: 0,
   fileHandle: null as FileSystemFileHandle | null,
   fingerprint: '',
@@ -93,6 +95,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       speakerNames: session.speakerNames,
       vadConfig: session.vadConfig,
     }),
+
+  discardSession: async (fingerprint) => {
+    const wasLoaded = get().fingerprint === fingerprint;
+    await deleteSession(fingerprint);
+    if (wasLoaded && get().fingerprint === fingerprint) {
+      set(initialState);
+    }
+  },
 
   loadSegments: (vadSegments) => {
     const { defaultSpeaker } = get();

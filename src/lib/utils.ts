@@ -13,3 +13,5 @@ export const isFormElement = (target: EventTarget | null): boolean => {
 export const isAbortError = (error: unknown): boolean => error instanceof DOMException && error.name === 'AbortError';
 
 export const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown error');
+
+export const pluralizeSegment = (count: number): string => `${count} ${count === 1 ? 'segment' : 'segments'}`;

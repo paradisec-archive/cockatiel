@@ -14,10 +14,10 @@ import { StatusBar } from '@/components/StatusBar';
 import { Toaster } from '@/components/ui/sonner';
 import { VadSettings } from '@/components/VadSettings';
 import { type TimelineViewport, useMediaPlayer, Waveform } from '@/components/Waveform';
+import { Workbench } from '@/components/Workbench';
 import { ZoomControl } from '@/components/ZoomControl';
 import { useAutoSegment } from '@/hooks/useAutoSegment';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { loadMostRecentSession } from '@/lib/persistence/storage';
 import { startAutoSave } from '@/lib/persistence/subscribe';
 import { useAppStore } from '@/lib/store';
 
@@ -39,25 +39,7 @@ const App = () => {
   const [viewport, setViewport] = useState<TimelineViewport>(defaultViewport);
   const [helpOpen, setHelpOpen] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    const stopAutoSave = startAutoSave();
-    (async () => {
-      const session = await loadMostRecentSession();
-      if (!alive || !session) {
-        return;
-      }
-      const state = useAppStore.getState();
-      if (state.fingerprint || state.appPhase !== 'upload') {
-        return;
-      }
-      state.hydrateFromStoredSession(session);
-    })();
-    return () => {
-      alive = false;
-      stopAutoSave();
-    };
-  }, []);
+  useEffect(() => startAutoSave(), []);
 
   const handleResegment = useCallback(() => {
     const file = audioFileRef.current;
@@ -71,6 +53,8 @@ const App = () => {
       <Header />
 
       <main className="mx-auto max-w-6xl px-4 py-6">
+        {appPhase === 'workbench' && <Workbench onFileSelected={processFile} />}
+
         {appPhase === 'upload' && (
           <>
             <RestoreBanner onResume={processFile} />

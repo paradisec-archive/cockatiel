@@ -26,7 +26,7 @@ describe('persistence/subscribe', () => {
     const store = useAppStore.getState();
     store.setFingerprint('abc');
     store.setMediaFile('file.wav', 10);
-    // appPhase is still 'upload'
+    // appPhase is still 'workbench' (initial)
     await waitForDebounce();
     expect(await loadSession('abc')).toBeUndefined();
   });

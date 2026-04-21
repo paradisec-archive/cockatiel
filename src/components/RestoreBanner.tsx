@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAppStore } from '@/lib/store';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage, pluralizeSegment } from '@/lib/utils';
 
 interface RestoreBannerProps {
   onResume: (file: File, handle: FileSystemFileHandle) => void;
@@ -81,8 +81,7 @@ export const RestoreBanner = ({ onResume }: RestoreBannerProps) => {
           Restoring your session for <span className="font-mono">{mediaFileName}</span>
         </p>
         <p className="text-muted-foreground">
-          {segmentCount} saved {segmentCount === 1 ? 'segment' : 'segments'}.{' '}
-          {canResume ? 'Resume without re-uploading.' : 'Drop the same audio file below to continue editing.'}
+          {pluralizeSegment(segmentCount)} saved. {canResume ? 'Resume without re-uploading.' : 'Drop the same audio file below to continue editing.'}
         </p>
       </div>
       {canResume && (

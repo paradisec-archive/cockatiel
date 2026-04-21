@@ -4,7 +4,7 @@ import { resampleTo16kMono } from '@/lib/audio-resample';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
 import { loadSession } from '@/lib/persistence/storage';
 import { useAppStore } from '@/lib/store';
-import { getErrorMessage, isAbortError } from '@/lib/utils';
+import { getErrorMessage, isAbortError, pluralizeSegment } from '@/lib/utils';
 import { segment } from '@/lib/vad';
 
 export const useAutoSegment = () => {
@@ -57,9 +57,11 @@ export const useAutoSegment = () => {
         store.setAppPhase('ready');
         store.setStatus('');
         store.setProgress(0);
-        if (switchedAway) {
-          toast.info(`Switched to saved session for "${existing.mediaFileName}".`);
-        }
+        const segments = pluralizeSegment(existing.segments.length);
+        const message = switchedAway
+          ? `Switched to saved session for "${existing.mediaFileName}" (${segments}).`
+          : `Restored saved session for "${existing.mediaFileName}" — ${segments}.`;
+        toast.success(message);
         return;
       }
 
