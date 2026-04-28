@@ -1,9 +1,6 @@
 # Supply chain security
 # https://pnpm.io/supply-chain-security
-strictDepBuilds: true
-blockExoticSubdeps: true
-minimumReleaseAge: 4320
-trustPolicy: no-downgrade
+minimumReleaseAge: 4320 # 3 days, tighter than v11 default of 1440 (1 day)
 
 allowBuilds:
   lefthook: true
