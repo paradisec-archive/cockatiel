@@ -10,6 +10,7 @@ const pickPayload = (state: ReturnType<typeof useAppStore.getState>): SessionPay
   mediaDuration: state.mediaDuration,
   mediaFileName: state.mediaFileName,
   segments: state.segments,
+  ...(state.sourceUrl ? { sourceUrl: state.sourceUrl } : {}),
   speakerNames: state.speakerNames,
   title: state.title,
   vadConfig: state.vadConfig,

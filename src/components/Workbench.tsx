@@ -2,32 +2,21 @@ import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { DropBar } from '@/components/DropBar';
 import { DropZone } from '@/components/DropZone';
+import { UrlDisclosure } from '@/components/UrlDisclosure';
 import { getStorageEstimate, isPersisted, type StorageUsage } from '@/lib/persistence/grant';
 import { listSessions, loadSession } from '@/lib/persistence/storage';
 import type { SessionSummary } from '@/lib/persistence/types';
+import { safeHost } from '@/lib/remote-audio';
 import { useAppStore } from '@/lib/store';
-import { cn } from '@/lib/utils';
+import { cn, formatBytes } from '@/lib/utils';
 
 interface StorageInfo extends StorageUsage {
   persisted: boolean;
 }
 
-const formatBytes = (n: number): string => {
-  if (n >= 1024 ** 3) {
-    const gb = n / 1024 ** 3;
-    return `${gb >= 10 ? Math.round(gb) : gb.toFixed(1)} GB`;
-  }
-  if (n >= 1024 ** 2) {
-    return `${Math.round(n / 1024 ** 2)} MB`;
-  }
-  if (n >= 1024) {
-    return `${Math.round(n / 1024)} KB`;
-  }
-  return `${n} B`;
-};
-
 interface WorkbenchProps {
   onFileSelected: (file: File, handle?: FileSystemFileHandle) => void;
+  onLoadUrl: (url: string) => void;
 }
 
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
@@ -76,7 +65,22 @@ const formatWordsShort = (n: number): string => {
   return `${k >= 10 ? Math.round(k) : k.toFixed(1)}k`;
 };
 
-export const Workbench = ({ onFileSelected }: WorkbenchProps) => {
+const SourceHostBadge = ({ url }: { url: string }) => {
+  const host = safeHost(url);
+  if (!host) {
+    return null;
+  }
+  return (
+    <span
+      title={url}
+      className="inline-flex shrink-0 items-center rounded border border-border/60 bg-muted/60 px-1.5 py-0 text-[10px] font-medium text-muted-foreground"
+    >
+      {host}
+    </span>
+  );
+};
+
+export const Workbench = ({ onFileSelected, onLoadUrl }: WorkbenchProps) => {
   const [sessions, setSessions] = useState<SessionSummary[] | null>(null);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
 
@@ -146,6 +150,9 @@ export const Workbench = ({ onFileSelected }: WorkbenchProps) => {
           </p>
         </div>
         <DropZone onFileSelected={onFileSelected} />
+        <div className="mt-2 w-full max-w-md">
+          <UrlDisclosure onLoad={onLoadUrl} />
+        </div>
       </div>
     );
   }
@@ -156,6 +163,7 @@ export const Workbench = ({ onFileSelected }: WorkbenchProps) => {
   return (
     <div className="mx-auto max-w-4xl space-y-5 py-8">
       <DropBar onFileSelected={onFileSelected} />
+      <UrlDisclosure onLoad={onLoadUrl} />
 
       <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full border-collapse text-sm">
@@ -193,7 +201,10 @@ export const Workbench = ({ onFileSelected }: WorkbenchProps) => {
                   <td className="max-w-0 px-4 py-2">
                     <button type="button" className="block w-full min-w-0 text-left outline-none" aria-label={`Open ${session.title}`}>
                       <p className="truncate font-medium focus-visible:underline">{session.title}</p>
-                      <p className="truncate font-mono text-xs text-muted-foreground">{session.mediaFileName}</p>
+                      <p className="flex items-center gap-1.5 truncate font-mono text-xs text-muted-foreground">
+                        <span className="truncate">{session.mediaFileName}</span>
+                        {session.sourceUrl && <SourceHostBadge url={session.sourceUrl} />}
+                      </p>
                     </button>
                   </td>
                   <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{formatDuration(session.mediaDuration)}</td>

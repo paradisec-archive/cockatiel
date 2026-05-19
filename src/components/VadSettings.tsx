@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Slider } from '@/components/ui/slider';
+import { getSkipDownloadConfirm, setSkipDownloadConfirm } from '@/lib/preferences';
 import { useAppStore } from '@/lib/store';
 
 interface VadSettingsProps {
@@ -10,6 +12,7 @@ interface VadSettingsProps {
 export const VadSettings = ({ onResegment }: VadSettingsProps) => {
   const vadConfig = useAppStore((s) => s.vadConfig);
   const setVadConfig = useAppStore((s) => s.setVadConfig);
+  const [skipConfirm, setSkipConfirmState] = useState<boolean>(() => getSkipDownloadConfirm());
 
   return (
     <Collapsible className="rounded-lg border border-border bg-card">
@@ -49,6 +52,18 @@ export const VadSettings = ({ onResegment }: VadSettingsProps) => {
           <Button variant="outline" size="sm" className="w-full" onClick={onResegment}>
             Re-segment with new settings
           </Button>
+          <label className="flex items-center gap-2 pt-2 font-mono text-[0.68rem] text-muted-foreground">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded border-border accent-foreground"
+              checked={skipConfirm}
+              onChange={(e) => {
+                setSkipConfirmState(e.target.checked);
+                setSkipDownloadConfirm(e.target.checked);
+              }}
+            />
+            Skip the confirmation when downloading audio from a URL
+          </label>
         </div>
       </CollapsibleContent>
     </Collapsible>

@@ -5,6 +5,7 @@ import { getSpeakerColour } from '@/lib/constants';
 import type { MediaPlayer, Viewport } from '@/lib/media-player/types';
 import { createWavesurferMediaPlayer } from '@/lib/media-player/wavesurfer';
 import { useAppStore } from '@/lib/store';
+import { getErrorMessage } from '@/lib/utils';
 import { SegmentContextMenu } from './SegmentContextMenu';
 
 const MediaPlayerContext = createContext<MediaPlayer | null>(null);
@@ -38,12 +39,17 @@ export const Waveform = ({ audioFile, children, onViewportChange }: WaveformProp
   }, []);
 
   useEffect(() => {
-    if (!player || !audioFile) {
+    if (!player) {
       return;
     }
+    if (!audioFile) {
+      setIsReady(false);
+      return;
+    }
+    setIsReady(false);
     player.loadBlob(audioFile).catch((err: unknown) => {
       console.error('Failed to load audio:', err);
-      useAppStore.getState().setStatus(`Error loading audio: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      useAppStore.getState().setStatus(`Error loading audio: ${getErrorMessage(err)}`);
       useAppStore.getState().setAppPhase('upload');
     });
   }, [player, audioFile]);

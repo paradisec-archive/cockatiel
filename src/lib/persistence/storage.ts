@@ -27,6 +27,20 @@ export const loadSession = async (fingerprint: string): Promise<StoredSession | 
   return session;
 };
 
+export const loadSessionByUrl = async (sourceUrl: string): Promise<StoredSession | undefined> => {
+  const all = await entries<string, StoredSession>(sessionsStore);
+  let best: StoredSession | undefined;
+  for (const [, session] of all) {
+    if (session.schemaVersion !== SCHEMA_VERSION || session.sourceUrl !== sourceUrl) {
+      continue;
+    }
+    if (!best || session.updatedAt > best.updatedAt) {
+      best = session;
+    }
+  }
+  return best;
+};
+
 export const loadMostRecentSession = async (): Promise<StoredSession | undefined> => {
   const all = await entries<string, StoredSession>(sessionsStore);
   let best: StoredSession | undefined;
@@ -63,6 +77,7 @@ export const listSessions = async (): Promise<SessionSummary[]> => {
       mediaDuration: s.mediaDuration,
       mediaFileName: s.mediaFileName,
       segmentCount: s.segments.length,
+      ...(s.sourceUrl ? { sourceUrl: s.sourceUrl } : {}),
       speakerCount: s.speakerNames.length,
       title: s.title || titleFromFileName(s.mediaFileName),
       updatedAt: s.updatedAt,

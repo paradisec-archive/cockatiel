@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { resampleTo16kMono } from '@/lib/audio-resample';
 import { sha256Hex } from '@/lib/persistence/fingerprint';
@@ -7,11 +7,22 @@ import { useAppStore } from '@/lib/store';
 import { getErrorMessage, isAbortError, pluralizeSegment, titleFromFileName } from '@/lib/utils';
 import { segment } from '@/lib/vad';
 
+export interface ProcessFileOptions {
+  handle?: FileSystemFileHandle;
+  sourceUrl?: string;
+}
+
 export const useAutoSegment = () => {
-  const audioFileRef = useRef<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const processFile = useCallback(async (file: File, handle?: FileSystemFileHandle) => {
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const processFile = useCallback(async (file: File, options: ProcessFileOptions = {}) => {
+    const { handle, sourceUrl } = options;
+
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -20,7 +31,7 @@ export const useAutoSegment = () => {
     const store = useAppStore.getState();
     const prevFingerprint = store.fingerprint;
     const prevFileName = store.mediaFileName;
-    audioFileRef.current = file;
+    setAudioFile(file);
 
     store.setAppPhase('processing');
     store.setStatus('Reading file...');
@@ -50,6 +61,9 @@ export const useAutoSegment = () => {
         store.hydrateFromStoredSession(existing);
         if (handle) {
           store.setFileHandle(handle);
+        }
+        if (sourceUrl) {
+          store.setSourceUrl(sourceUrl);
         }
         if (file.name !== existing.mediaFileName) {
           store.setMediaFile(file.name, existing.mediaDuration);
@@ -85,6 +99,9 @@ export const useAutoSegment = () => {
       if (handle) {
         store.setFileHandle(handle);
       }
+      if (sourceUrl) {
+        store.setSourceUrl(sourceUrl);
+      }
       store.setProgress(0.1);
 
       const samples16k = await resampleTo16kMono(originalBuffer);
@@ -112,5 +129,5 @@ export const useAutoSegment = () => {
     }
   }, []);
 
-  return { audioFileRef, processFile };
+  return { audioFile, cancel, processFile, setAudioFile };
 };

@@ -22,6 +22,38 @@ pnpm run dev
 
 Open [http://localhost:5173](http://localhost:5173) and drop an audio file to begin.
 
+## Loading audio from a URL
+
+Cockatiel can also load audio from a remote https URL. There are two ways to do it:
+
+- **Paste URL** — use the URL input below the drop zone and click **Load URL**.
+- **Deep link** — open cockatiel with an `?audio=` query parameter, e.g.
+  `https://your-cockatiel-host/?audio=https://catalog.example.org/path/to/audio.wav`.
+  Cockatiel will fetch the file, show its size for confirmation, then segment it. The
+  link stays in the URL bar so it can be shared.
+
+Sessions sourced from a URL are stored against that URL — revisiting the same link
+restores the saved transcript instantly and re-downloads the audio in the background.
+
+### CORS requirements
+
+Cockatiel fetches remote audio directly from your browser. The hosting server
+must allow cross-origin reads from cockatiel's origin. Specifically the server
+must return, for the audio URL:
+
+- `Access-Control-Allow-Origin: <cockatiel-origin>` (or `*`)
+- `Access-Control-Allow-Methods: GET` and `Access-Control-Allow-Headers: Range`
+  — cockatiel issues a small range-GET (`Range: bytes=0-0`) to discover the
+  file size before downloading. A range-GET is used instead of `HEAD` so that
+  signed URLs (e.g. S3 presigned URLs, which sign a specific HTTP method)
+  continue to work.
+
+If the server doesn't send these headers the load will fail with a CORS error.
+The privacy-first claim still holds — audio goes from the source server straight
+to your browser; cockatiel has no backend that sees the bytes.
+
+Only `https:` URLs are accepted.
+
 ## Scripts
 
 | Command | Description |

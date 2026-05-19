@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { clear, createStore } from 'idb-keyval';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { deleteSession, listSessions, loadMostRecentSession, loadSession, upsertSession } from '@/lib/persistence/storage';
+import { deleteSession, listSessions, loadMostRecentSession, loadSession, loadSessionByUrl, upsertSession } from '@/lib/persistence/storage';
 import { SCHEMA_VERSION } from '@/lib/persistence/types';
 import { makePayload as payload } from './test-util';
 
@@ -76,6 +76,28 @@ describe('persistence/storage', () => {
       const list = await listSessions();
       expect(list.map((s) => s.fingerprint)).toEqual(['b', 'a']);
       expect(list[0].segmentCount).toBe(1);
+    });
+  });
+
+  describe('loadSessionByUrl', () => {
+    it('returns undefined when no session matches the URL', async () => {
+      await upsertSession(payload());
+      expect(await loadSessionByUrl('https://example.com/missing.wav')).toBeUndefined();
+    });
+
+    it('returns the session whose sourceUrl matches', async () => {
+      await upsertSession(payload({ fingerprint: 'a', mediaFileName: 'a.wav' }));
+      await upsertSession(payload({ fingerprint: 'b', mediaFileName: 'b.wav', sourceUrl: 'https://example.com/b.wav' }));
+      const found = await loadSessionByUrl('https://example.com/b.wav');
+      expect(found?.fingerprint).toBe('b');
+    });
+
+    it('prefers the most-recently-updated session when multiple share a URL', async () => {
+      await upsertSession(payload({ fingerprint: 'a', sourceUrl: 'https://example.com/shared.wav' }));
+      await new Promise((r) => setTimeout(r, 5));
+      await upsertSession(payload({ fingerprint: 'b', sourceUrl: 'https://example.com/shared.wav' }));
+      const found = await loadSessionByUrl('https://example.com/shared.wav');
+      expect(found?.fingerprint).toBe('b');
     });
   });
 

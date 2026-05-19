@@ -8,6 +8,7 @@ export interface StoredSession extends ExportData {
   fileHandle?: FileSystemFileHandle;
   fingerprint: string;
   schemaVersion: typeof SCHEMA_VERSION;
+  sourceUrl?: string;
   updatedAt: number;
   vadConfig: VadConfig;
 }
@@ -17,6 +18,7 @@ export interface SessionSummary {
   mediaDuration: number;
   mediaFileName: string;
   segmentCount: number;
+  sourceUrl?: string;
   speakerCount: number;
   title: string;
   transcribedSegmentCount: number;

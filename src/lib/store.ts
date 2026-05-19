@@ -20,6 +20,7 @@ interface AppState {
   processingProgress: number;
   segments: Annotation[];
   selectedSegmentId: string | null;
+  sourceUrl: string | null;
   speakerNames: string[];
   statusMessage: string;
   title: string;
@@ -46,6 +47,7 @@ interface AppState {
   setFingerprint: (fingerprint: string) => void;
   setMediaFile: (name: string, duration: number) => void;
   setProgress: (fraction: number) => void;
+  setSourceUrl: (url: string | null) => void;
   setSpeakerCount: (count: number) => void;
   setSpeakerName: (index: number, name: string) => void;
   setStatus: (message: string) => void;
@@ -73,6 +75,7 @@ const initialState = {
   processingProgress: 0,
   segments: [] as Annotation[],
   selectedSegmentId: null as string | null,
+  sourceUrl: null as string | null,
   speakerNames: ['Speaker 1'],
   statusMessage: '',
   title: '',
@@ -88,6 +91,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFingerprint: (fingerprint) => set({ fingerprint }),
   setStatus: (message) => set({ statusMessage: message }),
   setProgress: (fraction) => set({ processingProgress: fraction }),
+  setSourceUrl: (url) => set({ sourceUrl: url }),
   setTitle: (title) => set({ title }),
 
   hydrateFromStoredSession: (session) =>
@@ -97,6 +101,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       mediaDuration: session.mediaDuration,
       mediaFileName: session.mediaFileName,
       segments: session.segments,
+      sourceUrl: session.sourceUrl ?? null,
       speakerNames: session.speakerNames,
       title: session.title || titleFromFileName(session.mediaFileName),
       vadConfig: session.vadConfig,
